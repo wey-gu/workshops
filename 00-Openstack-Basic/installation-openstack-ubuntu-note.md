@@ -6,8 +6,6 @@ Ubuntu was chosen as host OS.
 
 [TOC]
 
-
-
 ## Security
 
 > ref: https://docs.openstack.org/install-guide/environment-security.html
@@ -126,7 +124,7 @@ down ip link set dev $IFACE down
   iface enp0s3 inet static
   address 10.20.0.11
   netmask 255.255.255.0
-  gateway 10.20.0.1
+
   ```
 
 - NTP
@@ -195,10 +193,20 @@ auto enp0s3
 iface enp0s3 inet static
 address 10.20.0.10
 netmask 255.255.255.0
-gateway 10.20.0.1
 
 # ifup enp0s3
 ```
+
+### hostname and hosts
+
+```
+# echo controller > /etc/hostname
+# echo 10.20.0.10    controller >> /etc/hosts
+# echo 10.20.0.20    compute >> /etc/hosts
+# hostname controller
+```
+
+
 
 ### SQL database
 
@@ -249,7 +257,6 @@ Add the `openstack` user:
 # rabbitmqctl add_user openstack RABBIT_PASS
 
 Creating user "openstack" ...
-
 ```
 
 Replace `RABBIT_PASS` with a suitable password.
@@ -286,11 +293,33 @@ Restart the Memcached service:
 
 ## Compute actions
 
-- configure NTP by editing `/etc/chrony/chrony.conf`
+### management network eth0 (enp0s3)
 
-  ```
-  server 10.20.0.10 iburst
-  ```
+```
+# vi /etc/network/interfaces
+
+auto enp0s3
+iface enp0s3 inet static
+address 10.20.0.10
+netmask 255.255.255.0
+
+# ifup enp0s3
+```
+
+### configure NTP by editing `/etc/chrony/chrony.conf`
+
+```
+server 10.20.0.10 iburst
+```
+
+change hostname and hosts
+
+```
+# echo conpute > /etc/hostname
+# echo 10.20.0.10    controller >> /etc/hosts
+# echo 10.20.0.20    compute >> /etc/hosts
+# hostname compute
+```
 
 
 
@@ -981,3 +1010,1872 @@ For more information about how to download and build images, see [OpenStack Virt
    | 38047887-61a7-41ea-9b49-27987d5e8bb9 | cirros | active |
    +--------------------------------------+--------+--------+
    ```
+
+## Nova installation
+
+>  ref: https://docs.openstack.org/newton/install-guide-ubuntu/nova.html
+
+## Nova install and configure controller node
+
+### Prerequisites
+
+Before you install and configure the Compute service, you must create databases, service credentials, and API endpoints.
+
+1. To create the databases, complete these steps:
+
+   - Use the database access client to connect to the database server as the `root` user:
+
+     ```
+     # mysql
+
+     ```
+
+
+   - Create the `nova_api`, `nova`, and `nova_cell0` databases:
+
+     ```
+     MariaDB [(none)]> CREATE DATABASE nova_api;
+     MariaDB [(none)]> CREATE DATABASE nova;
+     MariaDB [(none)]> CREATE DATABASE nova_cell0;
+
+     ```
+
+   - Grant proper access to the databases:
+
+     ```
+     MariaDB [(none)]> GRANT ALL PRIVILEGES ON nova_api.* TO 'nova'@'localhost' \
+       IDENTIFIED BY 'NOVA_DBPASS';
+     MariaDB [(none)]> GRANT ALL PRIVILEGES ON nova_api.* TO 'nova'@'%' \
+       IDENTIFIED BY 'NOVA_DBPASS';
+
+     MariaDB [(none)]> GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'localhost' \
+       IDENTIFIED BY 'NOVA_DBPASS';
+     MariaDB [(none)]> GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'%' \
+       IDENTIFIED BY 'NOVA_DBPASS';
+
+     MariaDB [(none)]> GRANT ALL PRIVILEGES ON nova_cell0.* TO 'nova'@'localhost' \
+       IDENTIFIED BY 'NOVA_DBPASS';
+     MariaDB [(none)]> GRANT ALL PRIVILEGES ON nova_cell0.* TO 'nova'@'%' \
+       IDENTIFIED BY 'NOVA_DBPASS';
+
+     ```
+
+     Replace `NOVA_DBPASS` with a suitable password.
+
+   - Exit the database access client.
+
+2. Source the `admin` credentials to gain access to admin-only CLI commands:
+
+   ```
+   $ . admin-openrc
+
+   ```
+
+3. Create the Compute service credentials:
+
+   - Create the `nova` user:
+
+     ```
+     $ openstack user create --domain default --password-prompt nova
+
+     User Password:
+     Repeat User Password:
+     +---------------------+----------------------------------+
+     | Field               | Value                            |
+     +---------------------+----------------------------------+
+     | domain_id           | default                          |
+     | enabled             | True                             |
+     | id                  | 8a7dbf5279404537b1c7b86c033620fe |
+     | name                | nova                             |
+     | options             | {}                               |
+     | password_expires_at | None                             |
+     +---------------------+----------------------------------+
+
+     ```
+
+   - Add the `admin` role to the `nova` user:
+
+     ```
+     $ openstack role add --project service --user nova admin
+     ```
+
+     This command provides no output.
+
+   - Create the `nova` service entity:
+
+     ```
+     $ openstack service create --name nova \
+       --description "OpenStack Compute" compute
+
+     +-------------+----------------------------------+
+     | Field       | Value                            |
+     +-------------+----------------------------------+
+     | description | OpenStack Compute                |
+     | enabled     | True                             |
+     | id          | 060d59eac51b4594815603d75a00aba2 |
+     | name        | nova                             |
+     | type        | compute                          |
+     +-------------+----------------------------------+
+
+     ```
+
+4. Create the Compute API service endpoints:
+
+   ```
+   $ openstack endpoint create --region RegionOne \
+     compute public http://controller:8774/v2.1
+
+   +--------------+-------------------------------------------+
+   | Field        | Value                                     |
+   +--------------+-------------------------------------------+
+   | enabled      | True                                      |
+   | id           | 3c1caa473bfe4390a11e7177894bcc7b          |
+   | interface    | public                                    |
+   | region       | RegionOne                                 |
+   | region_id    | RegionOne                                 |
+   | service_id   | 060d59eac51b4594815603d75a00aba2          |
+   | service_name | nova                                      |
+   | service_type | compute                                   |
+   | url          | http://controller:8774/v2.1               |
+   +--------------+-------------------------------------------+
+
+   $ openstack endpoint create --region RegionOne \
+     compute internal http://controller:8774/v2.1
+
+   +--------------+-------------------------------------------+
+   | Field        | Value                                     |
+   +--------------+-------------------------------------------+
+   | enabled      | True                                      |
+   | id           | e3c918de680746a586eac1f2d9bc10ab          |
+   | interface    | internal                                  |
+   | region       | RegionOne                                 |
+   | region_id    | RegionOne                                 |
+   | service_id   | 060d59eac51b4594815603d75a00aba2          |
+   | service_name | nova                                      |
+   | service_type | compute                                   |
+   | url          | http://controller:8774/v2.1               |
+   +--------------+-------------------------------------------+
+
+   $ openstack endpoint create --region RegionOne \
+     compute admin http://controller:8774/v2.1
+
+   +--------------+-------------------------------------------+
+   | Field        | Value                                     |
+   +--------------+-------------------------------------------+
+   | enabled      | True                                      |
+   | id           | 38f7af91666a47cfb97b4dc790b94424          |
+   | interface    | admin                                     |
+   | region       | RegionOne                                 |
+   | region_id    | RegionOne                                 |
+   | service_id   | 060d59eac51b4594815603d75a00aba2          |
+   | service_name | nova                                      |
+   | service_type | compute                                   |
+   | url          | http://controller:8774/v2.1               |
+   +--------------+-------------------------------------------+
+
+   ```
+
+5. Create a Placement service user using your chosen `PLACEMENT_PASS`:
+
+   ```
+   $ openstack user create --domain default --password-prompt placement
+
+   User Password:
+   Repeat User Password:
+   +---------------------+----------------------------------+
+   | Field               | Value                            |
+   +---------------------+----------------------------------+
+   | domain_id           | default                          |
+   | enabled             | True                             |
+   | id                  | fa742015a6494a949f67629884fc7ec8 |
+   | name                | placement                        |
+   | options             | {}                               |
+   | password_expires_at | None                             |
+   +---------------------+----------------------------------+
+
+   ```
+
+6. Add the Placement user to the service project with the admin role:
+
+   ```
+   $ openstack role add --project service --user placement admin
+
+   ```
+
+   This command provides no output.
+
+7. Create the Placement API entry in the service catalog:
+
+   ```
+   $ openstack service create --name placement --description "Placement API" placement
+   +-------------+----------------------------------+
+   | Field       | Value                            |
+   +-------------+----------------------------------+
+   | description | Placement API                    |
+   | enabled     | True                             |
+   | id          | 2d1a27022e6e4185b86adac4444c495f |
+   | name        | placement                        |
+   | type        | placement                        |
+   +-------------+----------------------------------+
+   ```
+
+8. Create the Placement API service endpoints:
+
+   ```
+   $ openstack endpoint create --region RegionOne placement public http://controller:8778
+   +--------------+----------------------------------+
+   | Field        | Value                            |
+   +--------------+----------------------------------+
+   | enabled      | True                             |
+   | id           | 2b1b2637908b4137a9c2e0470487cbc0 |
+   | interface    | public                           |
+   | region       | RegionOne                        |
+   | region_id    | RegionOne                        |
+   | service_id   | 2d1a27022e6e4185b86adac4444c495f |
+   | service_name | placement                        |
+   | service_type | placement                        |
+   | url          | http://controller:8778           |
+   +--------------+----------------------------------+
+
+   $ openstack endpoint create --region RegionOne placement internal http://controller:8778
+   +--------------+----------------------------------+
+   | Field        | Value                            |
+   +--------------+----------------------------------+
+   | enabled      | True                             |
+   | id           | 02bcda9a150a4bd7993ff4879df971ab |
+   | interface    | internal                         |
+   | region       | RegionOne                        |
+   | region_id    | RegionOne                        |
+   | service_id   | 2d1a27022e6e4185b86adac4444c495f |
+   | service_name | placement                        |
+   | service_type | placement                        |
+   | url          | http://controller:8778           |
+   +--------------+----------------------------------+
+
+   $ openstack endpoint create --region RegionOne placement admin http://controller:8778
+   +--------------+----------------------------------+
+   | Field        | Value                            |
+   +--------------+----------------------------------+
+   | enabled      | True                             |
+   | id           | 3d71177b9e0f406f98cbff198d74b182 |
+   | interface    | admin                            |
+   | region       | RegionOne                        |
+   | region_id    | RegionOne                        |
+   | service_id   | 2d1a27022e6e4185b86adac4444c495f |
+   | service_name | placement                        |
+   | service_type | placement                        |
+   | url          | http://controller:8778           |
+   +--------------+----------------------------------+
+
+   ```
+
+### Install and configure components[¶](https://docs.openstack.org/ocata/install-guide-ubuntu/nova-controller-install.html#install-and-configure-components)
+
+ 
+
+Default configuration files vary by distribution. You might need to add these sections and options rather than modifying existing sections and options. Also, an ellipsis (`...`) in the configuration snippets indicates potential default configuration options that you should retain.
+
+1. Install the packages:
+
+   ```
+   # apt install nova-api nova-conductor nova-consoleauth \
+     nova-novncproxy nova-scheduler nova-placement-api
+
+   ```
+
+
+1. Edit the `/etc/nova/nova.conf` file and complete the following actions:
+
+   - In the `[api_database]` and `[database]` sections, configure database access:
+
+     ```
+     [api_database]
+     # ...
+     connection = mysql+pymysql://nova:NOVA_DBPASS@controller/nova_api
+
+     [database]
+     # ...
+     connection = mysql+pymysql://nova:NOVA_DBPASS@controller/nova
+
+     ```
+
+     Replace `NOVA_DBPASS` with the password you chose for the Compute databases.
+
+   - In the `[DEFAULT]` section, configure `RabbitMQ` message queue access:
+
+     ```
+     [DEFAULT]
+     # ...
+     transport_url = rabbit://openstack:RABBIT_PASS@controller
+
+     ```
+
+     Replace `RABBIT_PASS` with the password you chose for the `openstack` account in `RabbitMQ`.
+
+   - In the `[api]` and `[keystone_authtoken]` sections, configure Identity service access:
+
+     ```
+     [api]
+     # ...
+     auth_strategy = keystone
+
+     [keystone_authtoken]
+     # ...
+     auth_uri = http://controller:5000
+     auth_url = http://controller:35357
+     memcached_servers = controller:11211
+     auth_type = password
+     project_domain_name = default
+     user_domain_name = default
+     project_name = service
+     username = nova
+     password = nova
+     ```
+
+     Replace `nova` with the password you chose for the `nova` user in the Identity service.
+
+     Comment out or remove any other options in the `[keystone_authtoken]` section.
+
+   - In the `[DEFAULT]` section, configure the `my_ip` option to use the management interface IP address of the controller node:
+
+     ```
+     [DEFAULT]
+     # ...
+     my_ip = 10.0.0.11
+
+     ```
+
+- In the `[DEFAULT]` section, enable support for the Networking service:
+
+  ```
+  [DEFAULT]
+  # ...
+  use_neutron = True
+  firewall_driver = nova.virt.firewall.NoopFirewallDriver
+
+  ```
+
+  By default, Compute uses an internal firewall driver. Since the Networking service includes a firewall driver, you must disable the Compute firewall driver by using the `nova.virt.firewall.NoopFirewallDriver` firewall driver.
+
+
+- In the `[vnc]` section, configure the VNC proxy to use the management interface IP address of the controller node:
+
+  ```
+  [vnc]
+  enabled = true
+  # ...
+  vncserver_listen = $my_ip
+  vncserver_proxyclient_address = $my_ip
+
+  ```
+
+
+- In the `[glance]` section, configure the location of the Image service API:
+
+  ```
+  [glance]
+  # ...
+  api_servers = http://controller:9292
+
+  ```
+
+
+- In the `[oslo_concurrency]` section, configure the lock path:
+
+  ```
+  [oslo_concurrency]
+  # ...
+  lock_path = /var/lib/nova/tmp
+
+  ```
+
+
+- Due to a packaging bug, remove the `log_dir` option from the `[DEFAULT]` section.
+
+
+- In the `[placement]` section, configure the Placement API:
+
+  ```
+  [placement]
+  # ...
+  os_region_name = RegionOne
+  project_domain_name = Default
+  project_name = service
+  auth_type = password
+  user_domain_name = Default
+  auth_url = http://controller:35357/v3
+  username = placement
+  password = PLACEMENT_PASS
+
+  ```
+
+  Replace `PLACEMENT_PASS` with the password you choose for the `placement` user in the Identity service. Comment out any other options in the `[placement]` section.
+
+1. Populate the nova-api database:
+
+   ```
+   # su -s /bin/sh -c "nova-manage api_db sync" nova
+
+   ```
+
+   Ignore any deprecation messages in this output.
+
+2. Register the `cell0` database:
+
+   ```
+   # su -s /bin/sh -c "nova-manage cell_v2 map_cell0" nova
+
+   ```
+
+3. Create the `cell1` cell:
+
+   ```
+   # su -s /bin/sh -c "nova-manage cell_v2 create_cell --name=cell1 --verbose" nova
+   109e1d4b-536a-40d0-83c6-5f121b82b650
+
+   ```
+
+4. Populate the nova database:
+
+   ```
+   # su -s /bin/sh -c "nova-manage db sync" nova
+
+   ```
+
+5. Verify nova cell0 and cell1 are registered correctly:
+
+   ```
+   # nova-manage cell_v2 list_cells
+   +-------+--------------------------------------+
+   | Name  | UUID                                 |
+   +-------+--------------------------------------+
+   | cell1 | 109e1d4b-536a-40d0-83c6-5f121b82b650 |
+   | cell0 | 00000000-0000-0000-0000-000000000000 |
+   +-------+--------------------------------------+
+
+   ```
+
+### Finalize installation
+
+- Restart the Compute services:
+
+  ```
+  # service nova-api restart
+  # service nova-consoleauth restart
+  # service nova-scheduler restart
+  # service nova-conductor restart
+  # service nova-novncproxy restart
+  ```
+
+## Nova Install and configure a compute node
+
+This section describes how to install and configure the Compute service on a compute node. The service supports several [hypervisors](https://docs.openstack.org/newton/install-guide-ubuntu/common/glossary.html#term-hypervisor) to deploy [instances](https://docs.openstack.org/newton/install-guide-ubuntu/common/glossary.html#term-instance) or [VMs](https://docs.openstack.org/newton/install-guide-ubuntu/common/glossary.html#term-virtual-machine-vm). For simplicity, this configuration uses the [QEMU](https://docs.openstack.org/newton/install-guide-ubuntu/common/glossary.html#term-quick-emulator-qemu) hypervisor with the [KVM](https://docs.openstack.org/newton/install-guide-ubuntu/common/glossary.html#term-kernel-based-vm-kvm) extension on compute nodes that support hardware acceleration for virtual machines. 
+
+### Install and configure components
+
+
+
+1. Install the packages:
+
+   ```
+   # apt install nova-compute
+   ```
+
+
+1. Edit the `/etc/nova/nova.conf` file and complete the following actions:
+
+   - In the `[DEFAULT]` section, configure `RabbitMQ` message queue access:
+
+     ```
+     [DEFAULT]
+     ...
+     transport_url = rabbit://openstack:RABBIT_PASS@controller
+     ```
+
+     Replace `RABBIT_PASS` with the password you chose for the `openstack` account in `RabbitMQ`.
+
+   - In the `[DEFAULT]` and `[keystone_authtoken]` sections, configure Identity service access:
+
+     ```
+     [DEFAULT]
+     ...
+     auth_strategy = keystone
+
+     [keystone_authtoken]
+     ...
+     auth_uri = http://controller:5000
+     auth_url = http://controller:35357
+     memcached_servers = controller:11211
+     auth_type = password
+     project_domain_name = Default
+     user_domain_name = Default
+     project_name = service
+     username = nova
+     password = nova
+     ```
+
+     Replace `password = nova` with the password you chose for the `nova` user in the Identity service.
+
+     Comment out or remove any other options in the `[keystone_authtoken]` section.
+
+
+   - In the `[DEFAULT]` section, configure the `my_ip` option:
+
+     ```
+     [DEFAULT]
+     ...
+     my_ip = MANAGEMENT_INTERFACE_IP_ADDRESS
+     ```
+
+     Replace `MANAGEMENT_INTERFACE_IP_ADDRESS` with the IP address of the management network interface on your compute node, typically 10.0.0.31 for the first node in the [example architecture](https://docs.openstack.org/newton/install-guide-ubuntu/overview.html#overview-example-architectures).
+
+     here our compute is 10.20.0.20
+
+   - In the `[DEFAULT]` section, enable support for the Networking service:
+
+     ```
+     [DEFAULT]
+     ...
+     use_neutron = True
+     firewall_driver = nova.virt.firewall.NoopFirewallDriver
+     ```
+
+     By default, Compute uses an internal firewall service. Since Networking includes a firewall service, you must disable the Compute firewall service by using the `nova.virt.firewall.NoopFirewallDriver` firewall driver.
+
+
+   - In the `[vnc]` section, enable and configure remote console access:
+
+     ```
+     [vnc]
+     ...
+     enabled = True
+     vncserver_listen = 0.0.0.0
+     vncserver_proxyclient_address = $my_ip
+     novncproxy_base_url = http://controller:6080/vnc_auto.html
+
+     ```
+
+     The server component listens on all IP addresses and the proxy component only listens on the management interface IP address of the compute node. 
+
+     The base URL indicates the location where you can use a web browser to access remote consoles of instances on this compute node.
+
+     If the web browser to access remote consoles resides on a host that cannot resolve the `controller` hostname, you must replace `controller` with the management interface IP address of the controller node.
+
+   - In the `[glance]` section, configure the location of the Image service API:
+
+     ```
+     [glance]
+     ...
+     api_servers = http://controller:9292
+
+     ```
+
+
+   - In the `[oslo_concurrency]` section, configure the lock path:
+
+     ```
+     [oslo_concurrency]
+     ...
+     lock_path = /var/lib/nova/tmp
+     ```
+
+
+   - Due to a packaging bug, remove the `log-dir` option from the `[DEFAULT]` section.
+
+   - In the `[placement]` section, configure the Placement API:
+
+     ```
+     [placement]
+     # ...
+     os_region_name = RegionOne
+     project_domain_name = Default
+     project_name = service
+     auth_type = password
+     user_domain_name = Default
+     auth_url = http://controller:35357/v3
+     username = placement
+     password = placement
+     ```
+
+     Replace `placement` with the password you choose for the `placement` user in the Identity service. Comment out any other options in the `[placement]` section.
+
+
+
+### Finalize installation
+
+Determine whether your compute node supports hardware acceleration for virtual machines:
+
+```
+$ egrep -c '(vmx|svm)' /proc/cpuinfo
+```
+
+If this command returns a value of `one or greater`, your compute node supports hardware acceleration which typically requires no additional configuration.
+
+If this command returns a value of `zero`, your compute node does not support hardware acceleration and you must configure `libvirt` to use QEMU instead of KVM.
+
+- Edit the `[libvirt]` section in the `/etc/nova/nova-compute.conf` file as follows:
+
+  ```
+  [libvirt]
+  ...
+  virt_type = qemu
+  ```
+
+Restart the Compute service:
+
+```
+# service nova-compute restart
+```
+
+### Add the compute node to the cell database
+
+Run the following commands on the **controller** node.
+
+1. Source the admin credentials to enable admin-only CLI commands, then confirm there are compute hosts in the database:
+
+   ```
+   $ . admin-openrc
+
+   $ openstack hypervisor list
+   +----+---------------------+-----------------+-----------+-------+
+   | ID | Hypervisor Hostname | Hypervisor Type | Host IP   | State |
+   +----+---------------------+-----------------+-----------+-------+
+   |  1 | compute1            | QEMU            | 10.0.0.31 | up    |
+   +----+---------------------+-----------------+-----------+-------+
+
+   ```
+
+2. Discover compute hosts:
+
+   ```
+   # su -s /bin/sh -c "nova-manage cell_v2 discover_hosts --verbose" nova
+
+   Found 2 cell mappings.
+   Skipping cell0 since it does not contain hosts.
+   Getting compute nodes from cell 'cell1': ad5a5985-a719-4567-98d8-8d148aaae4bc
+   Found 1 computes in cell: ad5a5985-a719-4567-98d8-8d148aaae4bc
+   Checking host mapping for compute host 'compute': fe58ddc1-1d65-4f87-9456-bc040dc106b3
+   Creating host mapping for compute host 'compute': fe58ddc1-1d65-4f87-9456-bc040dc106b3
+   ```
+
+   ​
+
+   When you add new compute nodes, you must run `nova-manage cell_v2 discover_hosts` on the controller node to register those new compute nodes. Alternatively, you can set an appropriate interval in `/etc/nova/nova.conf`:
+
+   ```
+   [scheduler]
+   discover_hosts_in_cells_interval = 300
+   ```
+
+## Neutron installation
+
+> ref: https://docs.openstack.org/newton/install-guide-ubuntu/neutron.html
+
+
+
+This chapter explains how to install and configure the Networking service (neutron) using the [provider networks](https://docs.openstack.org/newton/install-guide-ubuntu/overview.html#network1). 
+
+For more information about the Networking service including virtual networking components, layout, and traffic flows, see the [OpenStack Networking Guide](http://docs.openstack.org/newton/networking-guide/).
+
+## Neutron Install and configure controller node
+
+### Prerequisites
+
+Before you configure the OpenStack Networking (neutron) service, you must create a database, service credentials, and API endpoints.
+
+1. To create the database, complete these steps:
+
+   - Use the database access client to connect to the database server as the `root` user:
+
+     ```
+     $ mysql -u root -p
+     ```
+
+   - Create the `neutron` database:
+
+     ```
+     mysql> CREATE DATABASE neutron;
+     ```
+
+   - Grant proper access to the `neutron` database, replacing `NEUTRON_DBPASS` with a suitable password:
+
+     ```
+     mysql> GRANT ALL PRIVILEGES ON neutron.* TO 'neutron'@'localhost' \
+       IDENTIFIED BY 'NEUTRON_DBPASS';
+     mysql> GRANT ALL PRIVILEGES ON neutron.* TO 'neutron'@'%' \
+       IDENTIFIED BY 'NEUTRON_DBPASS';
+     ```
+
+   - Exit the database access client.
+
+2. Source the `admin` credentials to gain access to admin-only CLI commands:
+
+   ```bash
+   $ . admin-openrc
+   ```
+
+3. To create the service credentials, complete these steps:
+
+   - Create the `neutron` user:
+
+     ```
+     $ openstack user create --domain default --password-prompt neutron
+
+     User Password:
+     Repeat User Password:
+     +---------------------+----------------------------------+
+     | Field               | Value                            |
+     +---------------------+----------------------------------+
+     | domain_id           | default                          |
+     | enabled             | True                             |
+     | id                  | 319f34694728440eb8ffcb27b6dd8b8a |
+     | name                | neutron                          |
+     | password_expires_at | None                             |
+     +---------------------+----------------------------------+
+     ```
+
+   - Add the `admin` role to the `neutron` user:
+
+     ```bash
+     $ openstack role add --project service --user neutron admin
+     ```
+
+     This command provides no output.
+
+   - Create the `neutron` service entity:
+
+     ```
+     $ openstack service create --name neutron \
+       --description "OpenStack Networking" network
+
+     +-------------+----------------------------------+
+     | Field       | Value                            |
+     +-------------+----------------------------------+
+     | description | OpenStack Networking             |
+     | enabled     | True                             |
+     | id          | f71529314dab4a4d8eca427e701d209e |
+     | name        | neutron                          |
+     | type        | network                          |
+     +-------------+----------------------------------+
+     ```
+
+4. Create the Networking service API endpoints:
+
+   ```
+   $ openstack endpoint create --region RegionOne \
+     network public http://controller:9696
+
+   +--------------+----------------------------------+
+   | Field        | Value                            |
+   +--------------+----------------------------------+
+   | enabled      | True                             |
+   | id           | 85d80a6d02fc4b7683f611d7fc1493a3 |
+   | interface    | public                           |
+   | region       | RegionOne                        |
+   | region_id    | RegionOne                        |
+   | service_id   | f71529314dab4a4d8eca427e701d209e |
+   | service_name | neutron                          |
+   | service_type | network                          |
+   | url          | http://controller:9696           |
+   +--------------+----------------------------------+
+
+   $ openstack endpoint create --region RegionOne \
+     network internal http://controller:9696
+
+   +--------------+----------------------------------+
+   | Field        | Value                            |
+   +--------------+----------------------------------+
+   | enabled      | True                             |
+   | id           | 09753b537ac74422a68d2d791cf3714f |
+   | interface    | internal                         |
+   | region       | RegionOne                        |
+   | region_id    | RegionOne                        |
+   | service_id   | f71529314dab4a4d8eca427e701d209e |
+   | service_name | neutron                          |
+   | service_type | network                          |
+   | url          | http://controller:9696           |
+   +--------------+----------------------------------+
+
+   $ openstack endpoint create --region RegionOne \
+     network admin http://controller:9696
+
+   +--------------+----------------------------------+
+   | Field        | Value                            |
+   +--------------+----------------------------------+
+   | enabled      | True                             |
+   | id           | 1ee14289c9374dffb5db92a5c112fc4e |
+   | interface    | admin                            |
+   | region       | RegionOne                        |
+   | region_id    | RegionOne                        |
+   | service_id   | f71529314dab4a4d8eca427e701d209e |
+   | service_name | neutron                          |
+   | service_type | network                          |
+   | url          | http://controller:9696           |
+   +--------------+----------------------------------+
+   ```
+
+### Configure networking options
+
+You can deploy the Networking service using one of two architectures represented by options 1 and 2.
+
+Option 1 deploys the simplest possible architecture that only supports attaching instances to provider (external) networks. No self-service (private) networks, routers, or floating IP addresses. Only the `admin` or other privileged user can manage provider networks.
+
+- [Networking Option 1: Provider networks](https://docs.openstack.org/newton/install-guide-ubuntu/neutron-controller-install-option1.html)
+
+Here we choose Option 1.
+
+### Networking Option 1: Provider networks
+
+Install and configure the Networking components on the *controller* node.
+
+### Install the components
+
+```
+# apt install neutron-server neutron-plugin-ml2 \
+  neutron-linuxbridge-agent neutron-dhcp-agent \
+  neutron-metadata-agent -y
+```
+
+### Configure the server component
+
+The Networking server component configuration includes the database, authentication mechanism, message queue, topology change notifications, and plug-in.
+
+- Edit the `/etc/neutron/neutron.conf` file and complete the following actions:
+
+  - In the `[database]` section, configure database access:
+
+    ```
+    [database]
+    ...
+    connection = mysql+pymysql://neutron:NEUTRON_DBPASS@controller/neutron
+    ```
+
+    Replace `NEUTRON_DBPASS` with the password you chose for the database.
+
+    Comment out or remove any other `connection` options in the `[database]` section.
+
+  - In the `[DEFAULT]` section, enable the Modular Layer 2 (ML2) plug-in and disable additional plug-ins:
+
+    ```
+    [DEFAULT]
+    ...
+    core_plugin = ml2
+    service_plugins =
+    ```
+
+  - In the `[DEFAULT]` section, configure `RabbitMQ` message queue access:
+
+    ```
+    [DEFAULT]
+    ...
+    transport_url = rabbit://openstack:RABBIT_PASS@controller
+    ```
+
+    Replace `RABBIT_PASS` with the password you chose for the `openstack` account in RabbitMQ.
+
+  - In the `[DEFAULT]` and `[keystone_authtoken]` sections, configure Identity service access:
+
+    ```
+    [DEFAULT]
+    ...
+    auth_strategy = keystone
+
+    [keystone_authtoken]
+    ...
+    auth_uri = http://controller:5000
+    auth_url = http://controller:35357
+    memcached_servers = controller:11211
+    auth_type = password
+    project_domain_name = Default
+    user_domain_name = Default
+    project_name = service
+    username = neutron
+    password = neutron
+    ```
+
+    Replace `password = neutron` with the password you chose for the `neutron` user in the Identity service.
+
+    Comment out or remove any other options in the `[keystone_authtoken]` section.
+
+  - In the `[DEFAULT]` and `[nova]` sections, configure Networking to notify Compute of network topology changes:
+
+    ```
+    [DEFAULT]
+    ...
+    notify_nova_on_port_status_changes = True
+    notify_nova_on_port_data_changes = True
+
+    [nova]
+    ...
+    auth_url = http://controller:35357
+    auth_type = password
+    project_domain_name = Default
+    user_domain_name = Default
+    region_name = RegionOne
+    project_name = service
+    username = nova
+    password = nova
+    ```
+
+    Replace `password = nova` with the password you chose for the `nova` user in the Identity service.
+
+### Configure the Modular Layer 2 (ML2) plug-in
+
+The ML2 plug-in uses the Linux bridge mechanism to build layer-2 (bridging and switching) virtual networking infrastructure for instances.
+
+- Edit the `/etc/neutron/plugins/ml2/ml2_conf.ini` file and complete the following actions:
+
+  - In the `[ml2]` section, enable flat and VLAN networks:
+
+    ```
+    [ml2]
+    ...
+    type_drivers = flat,vlan
+    ```
+
+  - In the `[ml2]` section, disable self-service networks:
+
+    ```
+    [ml2]
+    ...
+    tenant_network_types =
+
+    ```
+
+  - In the `[ml2]` section, enable the Linux bridge mechanism:
+
+    ```
+    [ml2]
+    ...
+    mechanism_drivers = linuxbridge
+    ```
+
+    After you configure the ML2 plug-in, removing values in the `type_drivers` option can lead to database inconsistency.
+
+  - In the `[ml2]` section, enable the port security extension driver:
+
+    ```
+    [ml2]
+    ...
+    extension_drivers = port_security
+    ```
+
+  - In the `[ml2_type_flat]` section, configure the provider virtual network as a flat network:
+
+    ```
+    [ml2_type_flat]
+    ...
+    flat_networks = provider
+
+    ```
+
+  - In the `[securitygroup]` section, enable [ipset](https://docs.openstack.org/newton/install-guide-ubuntu/common/glossary.html#term-ipset) to increase efficiency of security group rules:
+
+    ```
+    [securitygroup]
+    ...
+    enable_ipset = True
+    ```
+
+### Configure the Linux bridge agent
+
+The Linux bridge agent builds layer-2 (bridging and switching) virtual networking infrastructure for instances and handles security groups.
+
+- Edit the `/etc/neutron/plugins/ml2/linuxbridge_agent.ini` file and complete the following actions:
+
+  - In the `[linux_bridge]` section, map the provider virtual network to the provider physical network interface:
+
+    ```
+    [linux_bridge]
+    physical_interface_mappings = provider:PROVIDER_INTERFACE_NAME
+    ```
+
+    Replace `PROVIDER_INTERFACE_NAME` with the name of the underlying provider physical network interface. See [Host networking](https://docs.openstack.org/newton/install-guide-ubuntu/environment-networking.html#environment-networking) for more information.
+
+    in our case it is: enp0s10, the bridged nic of controller network.
+
+    ​
+
+  - In the `[vxlan]` section, disable VXLAN overlay networks:
+
+    ```
+    [vxlan]
+    enable_vxlan = False
+
+    ```
+
+  - In the `[securitygroup]` section, enable security groups and configure the Linux bridge [iptables](https://docs.openstack.org/newton/install-guide-ubuntu/common/glossary.html#term-iptables) firewall driver:
+
+    ```
+    [securitygroup]
+    ...
+    enable_security_group = True
+    firewall_driver = neutron.agent.linux.iptables_firewall.IptablesFirewallDriver
+    ```
+
+### Configure the DHCP agent
+
+The [DHCP agent](https://docs.openstack.org/newton/install-guide-ubuntu/common/glossary.html#term-dhcp-agent) provides DHCP services for virtual networks.
+
+- Edit the `/etc/neutron/dhcp_agent.ini` file and complete the following actions:
+
+  - In the `[DEFAULT]` section, configure the Linux bridge interface driver, Dnsmasq DHCP driver, and enable isolated metadata so instances on provider networks can access metadata over the network:
+
+    ```
+    [DEFAULT]
+    ...
+    interface_driver = neutron.agent.linux.interface.BridgeInterfaceDriver
+    dhcp_driver = neutron.agent.linux.dhcp.Dnsmasq
+    enable_isolated_metadata = True
+    ```
+
+Return to [Networking controller node configuration](https://docs.openstack.org/newton/install-guide-ubuntu/neutron-controller-install.html#neutron-controller-metadata-agent).
+
+### Configure the metadata agent
+
+The [metadata agent](https://docs.openstack.org/newton/install-guide-ubuntu/common/glossary.html#term-metadata-agent) provides configuration information such as credentials to instances.
+
+- Edit the `/etc/neutron/metadata_agent.ini` file and complete the following actions:
+
+  - In the `[DEFAULT]` section, configure the metadata host and shared secret:
+
+    ```
+    [DEFAULT]
+    ...
+    nova_metadata_ip = controller
+    metadata_proxy_shared_secret = METADATA_SECRET
+
+    ```
+
+    Replace `METADATA_SECRET` with a suitable secret for the metadata proxy.
+
+### Configure the Compute service to use the Networking service
+
+- Edit the `/etc/nova/nova.conf` file and perform the following actions:
+
+  - In the `[neutron]` section, configure access parameters, enable the metadata proxy, and configure the secret:
+
+    ```
+    [neutron]
+    ...
+    url = http://controller:9696
+    auth_url = http://controller:35357
+    auth_type = password
+    project_domain_name = Default
+    user_domain_name = Default
+    region_name = RegionOne
+    project_name = service
+    username = neutron
+    password = neutron
+    service_metadata_proxy = True
+    metadata_proxy_shared_secret = METADATA_SECRET
+    ```
+
+    Replace `password = neutron` with the password you chose for the `neutron` user in the Identity service.
+
+    Replace `METADATA_SECRET` with the secret you chose for the metadata proxy.
+
+### Finalize installation
+
+1. Populate the database:
+
+   ```
+   # su -s /bin/sh -c "neutron-db-manage --config-file /etc/neutron/neutron.conf \
+     --config-file /etc/neutron/plugins/ml2/ml2_conf.ini upgrade head" neutron
+   ```
+
+   Database population occurs later for Networking because the script requires complete server and plug-in configuration files.
+
+2. Restart the Compute API service:
+
+   ```
+   # service nova-api restart
+   ```
+
+3. Restart the Networking services.
+
+   For both networking options:
+
+   ```
+   # service neutron-server restart
+   # service neutron-linuxbridge-agent restart
+   # service neutron-dhcp-agent restart
+   # service neutron-metadata-agent restart
+   ```
+
+   For networking option 2, also restart the layer-3 service:
+
+   ```
+   # service neutron-l3-agent restart
+   ```
+
+### Verify operation
+
+```
+root@controller:~# openstack network agent list --max-width 50
++----------+------------+----------+-------------------+-------+-------+----------+
+| ID       | Agent Type | Host     | Availability Zone | Alive | State | Binary   |
++----------+------------+----------+-------------------+-------+-------+----------+
+| 1d661145 | Linux      | controll | None              | True  | UP    | neutron- |
+| -0941    | bridge     | er       |                   |       |       | linuxbri |
+| -411d-9b | agent      |          |                   |       |       | dge-     |
+| 18-b3371 |            |          |                   |       |       | agent    |
+| fe57c4b  |            |          |                   |       |       |          |
+| 7502e1a3 | DHCP agent | controll | nova              | True  | UP    | neutron- |
+| -998d-   |            | er       |                   |       |       | dhcp-    |
+| 4aca-91e |            |          |                   |       |       | agent    |
+| 4-ca17e1 |            |          |                   |       |       |          |
+| b10c82   |            |          |                   |       |       |          |
+| 7c47ac70 | Metadata   | controll | None              | True  | UP    | neutron- |
+| -5de2-44 | agent      | er       |                   |       |       | metadata |
+| 42-8fc1- |            |          |                   |       |       | -agent   |
+| 91fe97ae |            |          |                   |       |       |          |
+| 120f     |            |          |                   |       |       |          |
++----------+------------+----------+-------------------+-------+-------+----------+
+
+```
+
+
+
+## Neutron Install and configure compute node
+
+The compute node handles connectivity and [security groups](https://docs.openstack.org/newton/install-guide-ubuntu/common/glossary.html#term-security-group) for instances.
+
+### Install the components
+
+```
+# apt install neutron-linuxbridge-agent -y
+```
+
+## Configure the common component[¶](https://docs.openstack.org/newton/install-guide-ubuntu/neutron-compute-install.html#configure-the-common-component)
+
+The Networking common component configuration includes the authentication mechanism, message queue, and plug-in.
+
+- Edit the `/etc/neutron/neutron.conf` file and complete the following actions:
+
+  - In the `[database]` section, comment out any `connection` options because compute nodes do not directly access the database.
+
+  - In the `[DEFAULT]` section, configure `RabbitMQ` message queue access:
+
+    ```
+    [DEFAULT]
+    ...
+    transport_url = rabbit://openstack:RABBIT_PASS@controller
+    ```
+
+    Replace `RABBIT_PASS` with the password you chose for the `openstack` account in RabbitMQ.
+
+  - In the `[DEFAULT]` and `[keystone_authtoken]` sections, configure Identity service access:
+
+    ```
+    [DEFAULT]
+    ...
+    auth_strategy = keystone
+
+    [keystone_authtoken]
+    ...
+    auth_uri = http://controller:5000
+    auth_url = http://controller:35357
+    memcached_servers = controller:11211
+    auth_type = password
+    project_domain_name = Default
+    user_domain_name = Default
+    project_name = service
+    username = neutron
+    password = neutron
+    ```
+
+    Replace `password = neutron` with the password you chose for the `neutron` user in the Identity service.
+
+    Comment out or remove any other options in the `[keystone_authtoken]` section.
+
+### Configure networking options
+
+Choose the same networking option that you chose for the controller node to configure services specific to it. Afterwards, return here and proceed to [Configure the Compute service to use the Networking service](https://docs.openstack.org/newton/install-guide-ubuntu/neutron-compute-install.html#neutron-compute-compute).
+
+- [Networking Option 1: Provider networks](https://docs.openstack.org/newton/install-guide-ubuntu/neutron-compute-install-option1.html)
+
+### Configure the Linux bridge agent
+
+The Linux bridge agent builds layer-2 (bridging and switching) virtual networking infrastructure for instances and handles security groups.
+
+- Edit the `/etc/neutron/plugins/ml2/linuxbridge_agent.ini` file and complete the following actions:
+
+  - In the `[linux_bridge]` section, map the provider virtual network to the provider physical network interface:
+
+    ```
+    [linux_bridge]
+    physical_interface_mappings = provider:PROVIDER_INTERFACE_NAME
+
+    ```
+
+    Replace `PROVIDER_INTERFACE_NAME` with the name of the underlying provider physical network interface. See [Host networking](https://docs.openstack.org/newton/install-guide-ubuntu/environment-networking.html#environment-networking) for more information.
+
+  - In the `[vxlan]` section, disable VXLAN overlay networks:
+
+    ```
+    [vxlan]
+    enable_vxlan = False
+
+    ```
+
+  - In the `[securitygroup]` section, enable security groups and configure the Linux bridge [iptables](https://docs.openstack.org/newton/install-guide-ubuntu/common/glossary.html#term-iptables) firewall driver:
+
+    ```
+    [securitygroup]
+    ...
+    enable_security_group = True
+    firewall_driver = neutron.agent.linux.iptables_firewall.IptablesFirewallDriver
+
+    ```
+
+Return to [Networking compute node configuration](https://docs.openstack.org/newton/install-guide-ubuntu/neutron-compute-install.html#neutron-compute-compute).
+
+
+
+### Configure the Compute service to use the Networking service
+
+- Edit the `/etc/nova/nova.conf` file and complete the following actions:
+
+  - In the `[neutron]` section, configure access parameters:
+
+    ```
+    [neutron]
+    ...
+    url = http://controller:9696
+    auth_url = http://controller:35357
+    auth_type = password
+    project_domain_name = Default
+    user_domain_name = Default
+    region_name = RegionOne
+    project_name = service
+    username = neutron
+    password = neutron
+    ```
+
+    Replace `password = neutron` with the password you chose for the `neutron` user in the Identity service.
+
+### Finalize installation
+
+1. Restart the Compute service:
+
+   ```
+   # service nova-compute restart
+   ```
+
+2. Restart the Linux bridge agent:
+
+   ```
+   # service neutron-linuxbridge-agent restart
+   ```
+
+### Verify operation
+
+Perform these commands on the controller node.
+
+1. Source the `admin` credentials to gain access to admin-only CLI commands:
+
+   ```
+   $ . admin-openrc
+   ```
+
+2. List loaded extensions to verify successful launch of the `neutron-server` process:
+
+   ```
+   $ neutron ext-list
+
+   +---------------------------+-----------------------------------------------+
+   | alias                     | name                                          |
+   +---------------------------+-----------------------------------------------+
+   | default-subnetpools       | Default Subnetpools                           |
+   | network-ip-availability   | Network IP Availability                       |
+   | network_availability_zone | Network Availability Zone                     |
+   | auto-allocated-topology   | Auto Allocated Topology Services              |
+   | ext-gw-mode               | Neutron L3 Configurable external gateway mode |
+   | binding                   | Port Binding                                  |
+   | agent                     | agent                                         |
+   | subnet_allocation         | Subnet Allocation                             |
+   | l3_agent_scheduler        | L3 Agent Scheduler                            |
+   | tag                       | Tag support                                   |
+   | external-net              | Neutron external network                      |
+   | net-mtu                   | Network MTU                                   |
+   | availability_zone         | Availability Zone                             |
+   | quotas                    | Quota management support                      |
+   | l3-ha                     | HA Router extension                           |
+   | flavors                   | Neutron Service Flavors                       |
+   | provider                  | Provider Network                              |
+   | multi-provider            | Multi Provider Network                        |
+   | address-scope             | Address scope                                 |
+   | extraroute                | Neutron Extra Route                           |
+   | timestamp_core            | Time Stamp Fields addition for core resources |
+   | router                    | Neutron L3 Router                             |
+   | extra_dhcp_opt            | Neutron Extra DHCP opts                       |
+   | dns-integration           | DNS Integration                               |
+   | security-group            | security-group                                |
+   | dhcp_agent_scheduler      | DHCP Agent Scheduler                          |
+   | router_availability_zone  | Router Availability Zone                      |
+   | rbac-policies             | RBAC Policies                                 |
+   | standard-attr-description | standard-attr-description                     |
+   | port-security             | Port Security                                 |
+   | allowed-address-pairs     | Allowed Address Pairs                         |
+   | dvr                       | Distributed Virtual Router                    |
+   +---------------------------+-----------------------------------------------+
+   ```
+
+3. List agents to verify successful launch of the neutron agents:
+
+```
+$ openstack network agent list
+
+root@controller:~# openstack network agent list --max-width 70
++----------+------------+----------+-------------------+-------+-------+------------+
+| ID       | Agent Type | Host     | Availability Zone | Alive | State | Binary     |
++----------+------------+----------+-------------------+-------+-------+------------+
+| 143d7731 | Linux      | compute  | None              | True  | UP    | neutron-li |
+| -9227-4b | bridge     |          |                   |       |       | nuxbridge- |
+| af-9052- | agent      |          |                   |       |       | agent      |
+| 292d7aea |            |          |                   |       |       |            |
+| 6992     |            |          |                   |       |       |            |
+| 1d661145 | Linux      | controll | None              | True  | UP    | neutron-li |
+| -0941    | bridge     | er       |                   |       |       | nuxbridge- |
+| -411d-9b | agent      |          |                   |       |       | agent      |
+| 18-b3371 |            |          |                   |       |       |            |
+| fe57c4b  |            |          |                   |       |       |            |
+| 7502e1a3 | DHCP agent | controll | nova              | True  | UP    | neutron-   |
+| -998d-   |            | er       |                   |       |       | dhcp-agent |
+| 4aca-91e |            |          |                   |       |       |            |
+| 4-ca17e1 |            |          |                   |       |       |            |
+| b10c82   |            |          |                   |       |       |            |
+| 7c47ac70 | Metadata   | controll | None              | True  | UP    | neutron-   |
+| -5de2-44 | agent      | er       |                   |       |       | metadata-  |
+| 42-8fc1- |            |          |                   |       |       | agent      |
+| 91fe97ae |            |          |                   |       |       |            |
+| 120f     |            |          |                   |       |       |            |
++----------+------------+----------+-------------------+-------+-------+------------+
+
+```
+
+The output should indicate three agents on the controller node and one agent on each compute node.
+
+## Congratulations let's try booting an instance
+
+
+
+### Create provider network/subnetwork
+
+>  ref: https://docs.openstack.org/newton/install-guide-ubuntu/launch-instance-networks-provider.html
+
+```
+root@controller:~# . admin-openrc
+root@controller:~# openstack network create  --share --external \
+>   --provider-physical-network provider \
+>   --provider-network-type flat provider
++---------------------------+--------------------------------------+
+| Field                     | Value                                |
++---------------------------+--------------------------------------+
+| admin_state_up            | UP                                   |
+| availability_zone_hints   |                                      |
+| availability_zones        |                                      |
+| created_at                | 2017-08-23T17:14:21Z                 |
+| description               |                                      |
+| dns_domain                | None                                 |
+| id                        | 2a33434f-ba29-4645-9b5d-24f1509066f1 |
+| ipv4_address_scope        | None                                 |
+| ipv6_address_scope        | None                                 |
+| is_default                | None                                 |
+| mtu                       | 1500                                 |
+| name                      | provider                             |
+| port_security_enabled     | True                                 |
+| project_id                | 78c9c849237649a3a8c4526167427589     |
+| provider:network_type     | flat                                 |
+| provider:physical_network | provider                             |
+| provider:segmentation_id  | None                                 |
+| qos_policy_id             | None                                 |
+| revision_number           | 4                                    |
+| router:external           | External                             |
+| segments                  | None                                 |
+| shared                    | True                                 |
+| status                    | ACTIVE                               |
+| subnets                   |                                      |
+| updated_at                | 2017-08-23T17:14:21Z                 |
++---------------------------+--------------------------------------+
+root@controller:~# neutron net-list
+neutron CLI is deprecated and will be removed in the future. Use openstack CLI instead.
++--------------------------------------+----------+----------------------------------+---------+
+| id                                   | name     | tenant_id                        | subnets |
++--------------------------------------+----------+----------------------------------+---------+
+| 2a33434f-ba29-4645-9b5d-24f1509066f1 | provider | 78c9c849237649a3a8c4526167427589 |         |
++--------------------------------------+----------+----------------------------------+---------+
+root@controller:~# openstack network list
++--------------------------------------+----------+---------+
+| ID                                   | Name     | Subnets |
++--------------------------------------+----------+---------+
+| 2a33434f-ba29-4645-9b5d-24f1509066f1 | provider |         |
++--------------------------------------+----------+---------+
+
+root@controller:~# openstack subnet create --network provider \
+>   --allocation-pool start=146.11.41.230,end=146.11.41.233 \
+>   --dns-nameserver 147.128.5.12 --gateway 146.11.40.1 \
+>   --subnet-range 146.11.40.1/23 provider
++-------------------+--------------------------------------+
+| Field             | Value                                |
++-------------------+--------------------------------------+
+| allocation_pools  | 146.11.41.230-146.11.41.233          |
+| cidr              | 146.11.40.0/23                       |
+| created_at        | 2017-08-23T17:17:54Z                 |
+| description       |                                      |
+| dns_nameservers   | 147.128.5.12                         |
+| enable_dhcp       | True                                 |
+| gateway_ip        | 146.11.40.1                          |
+| host_routes       |                                      |
+| id                | 9b118521-59b5-40ee-a439-9d59c3b392ea |
+| ip_version        | 4                                    |
+| ipv6_address_mode | None                                 |
+| ipv6_ra_mode      | None                                 |
+| name              | provider                             |
+| network_id        | 2a33434f-ba29-4645-9b5d-24f1509066f1 |
+| project_id        | 78c9c849237649a3a8c4526167427589     |
+| revision_number   | 2                                    |
+| segment_id        | None                                 |
+| service_types     |                                      |
+| subnetpool_id     | None                                 |
+| updated_at        | 2017-08-23T17:17:54Z                 |
++-------------------+--------------------------------------+
+
+```
+
+
+
+### Create flavor
+
+The smallest default flavor consumes 512 MB memory per instance. For environments with compute nodes containing less than 4 GB memory, we recommend creating the `m1.nano` flavor that only requires 64 MB per instance. Only use this flavor with the CirrOS image for testing purposes.
+
+```bash
+$ openstack flavor create --id 0 --vcpus 1 --ram 64 --disk 1 m1.nano
+
++----------------------------+---------+
+| Field                      | Value   |
++----------------------------+---------+
+| OS-FLV-DISABLED:disabled   | False   |
+| OS-FLV-EXT-DATA:ephemeral  | 0       |
+| disk                       | 1       |
+| id                         | 0       |
+| name                       | m1.nano |
+| os-flavor-access:is_public | True    |
+| ram                        | 64      |
+| rxtx_factor                | 1.0     |
+| swap                       |         |
+| vcpus                      | 1       |
++----------------------------+---------+
+```
+
+### Add security group rules
+
+By default, the `default` security group applies to all instances and includes firewall rules that deny remote access to instances. For Linux images such as CirrOS, we recommend allowing at least ICMP (ping) and secure shell (SSH).
+
+- Add rules to the `default` security group:
+
+  - Permit [ICMP](https://docs.openstack.org/newton/install-guide-ubuntu/common/glossary.html#term-internet-control-message-protocol-icmp) (ping):
+
+    ```
+    $ openstack security group rule create --proto icmp default
+
+    +-------------------+--------------------------------------+
+    | Field             | Value                                |
+    +-------------------+--------------------------------------+
+    | created_at        | 2016-10-05T09:52:31Z                 |
+    | description       |                                      |
+    | direction         | ingress                              |
+    | ethertype         | IPv4                                 |
+    | headers           |                                      |
+    | id                | 6ee8d630-9803-4d3d-9aea-8c795abbedc2 |
+    | port_range_max    | None                                 |
+    | port_range_min    | None                                 |
+    | project_id        | 77ae8d7104024123af342ffb0a6f1d88     |
+    | project_id        | 77ae8d7104024123af342ffb0a6f1d88     |
+    | protocol          | icmp                                 |
+    | remote_group_id   | None                                 |
+    | remote_ip_prefix  | 0.0.0.0/0                            |
+    | revision_number   | 1                                    |
+    | security_group_id | 4ceee3d4-d2fe-46c1-895c-382033e87b0d |
+    | updated_at        | 2016-10-05T09:52:31Z                 |
+    +-------------------+--------------------------------------+
+    ```
+
+  - Permit secure shell (SSH) access:
+
+    ```
+    $ openstack security group rule create --proto tcp --dst-port 22 default
+
+    +-------------------+--------------------------------------+
+    | Field             | Value                                |
+    +-------------------+--------------------------------------+
+    | created_at        | 2016-10-05T09:54:50Z                 |
+    | description       |                                      |
+    | direction         | ingress                              |
+    | ethertype         | IPv4                                 |
+    | headers           |                                      |
+    | id                | 3cd0a406-43df-4741-ab29-b5e7dcb7469d |
+    | port_range_max    | 22                                   |
+    | port_range_min    | 22                                   |
+    | project_id        | 77ae8d7104024123af342ffb0a6f1d88     |
+    | project_id        | 77ae8d7104024123af342ffb0a6f1d88     |
+    | protocol          | tcp                                  |
+    | remote_group_id   | None                                 |
+    | remote_ip_prefix  | 0.0.0.0/0                            |
+    | revision_number   | 1                                    |
+    | security_group_id | 4ceee3d4-d2fe-46c1-895c-382033e87b0d |
+    | updated_at        | 2016-10-05T09:54:50Z                 |
+    +-------------------+--------------------------------------+
+    ```
+
+### Launch an instance
+
+ref: [Launch an instance on the provider network](https://docs.openstack.org/newton/install-guide-ubuntu/launch-instance-provider.html)
+
+### Determine instance options
+
+To launch an instance, you must at least specify the flavor, image name, network, security group, key, and instance name.
+
+1. On the controller node, source the `demo` credentials to gain access to user-only CLI commands:
+
+   ```
+   $ . demo-openrc
+   ```
+
+2. A flavor specifies a virtual resource allocation profile which includes processor, memory, and storage.
+
+   List available flavors:
+
+   ```
+   $ openstack flavor list
+
+   +----+---------+-----+------+-----------+-------+-----------+
+   | ID | Name    | RAM | Disk | Ephemeral | VCPUs | Is Public |
+   +----+---------+-----+------+-----------+-------+-----------+
+   | 0  | m1.nano |  64 |    1 |         0 |     1 | True      |
+   +----+---------+-----+------+-----------+-------+-----------+
+   ```
+
+   You can also reference a flavor by ID.
+
+3. List available images:
+
+   ```
+   $ openstack image list
+
+   +--------------------------------------+--------+--------+
+   | ID                                   | Name   | Status |
+   +--------------------------------------+--------+--------+
+   | 390eb5f7-8d49-41ec-95b7-68c0d5d54b34 | cirros | active |
+   +--------------------------------------+--------+--------+
+   ```
+
+   This instance uses the `cirros` image.
+
+4. List available networks:
+
+   ```
+   $ openstack network list
+
+   +--------------------------------------+--------------+--------------------------------------+
+   | ID                                   | Name         | Subnets                              |
+   +--------------------------------------+--------------+--------------------------------------+
+   | 4716ddfe-6e60-40e7-b2a8-42e57bf3c31c | selfservice  | 2112d5eb-f9d6-45fd-906e-7cabd38b7c7c |
+   | b5b6993c-ddf9-40e7-91d0-86806a42edb8 | provider     | 310911f6-acf0-4a47-824e-3032916582ff |
+   +--------------------------------------+--------------+--------------------------------------+
+   ```
+
+   This instance uses the `provider` provider network. However, you must reference this network using the ID instead of the name.
+
+   ​
+
+5. List available security groups:
+
+   ```
+   $ openstack security group list
+
+   +--------------------------------------+---------+------------------------+----------------------------------+
+   | ID                                   | Name    | Description            | Project                          |
+   +--------------------------------------+---------+------------------------+----------------------------------+
+   | dd2b614c-3dad-48ed-958b-b155a3b38515 | default | Default security group | a516b957032844328896baa01e0f906c |
+   +--------------------------------------+---------+------------------------+----------------------------------+
+   ```
+
+   This instance uses the `default` security group.
+
+### Launch the instance
+
+1. Launch the instance:
+
+   Replace `PROVIDER_NET_ID` with the ID of the `provider` provider network.
+
+   If you chose option 1 and your environment contains only one network, you can omit the `--nic` option because OpenStack automatically chooses the only network available.
+
+   ```
+   root@controller:~# openstack server create --flavor m1.nano --image cirros \
+   >   --nic net-id=2a33434f-ba29-4645-9b5d-24f1509066f1 --security-group default provider-instance
+   +-----------------------------+-----------------------------------------------+
+   | Field                       | Value                                         |
+   +-----------------------------+-----------------------------------------------+
+   | OS-DCF:diskConfig           | MANUAL                                        |
+   | OS-EXT-AZ:availability_zone |                                               |
+   | OS-EXT-STS:power_state      | NOSTATE                                       |
+   | OS-EXT-STS:task_state       | scheduling                                    |
+   | OS-EXT-STS:vm_state         | building                                      |
+   | OS-SRV-USG:launched_at      | None                                          |
+   | OS-SRV-USG:terminated_at    | None                                          |
+   | accessIPv4                  |                                               |
+   | accessIPv6                  |                                               |
+   | addresses                   |                                               |
+   | adminPass                   | MnjXdXf3qHia                                  |
+   | config_drive                |                                               |
+   | created                     | 2017-08-23T17:29:04Z                          |
+   | flavor                      | m1.nano (0)                                   |
+   | hostId                      |                                               |
+   | id                          | 02f54ef9-e867-4c1a-88f9-8eddd144da6f          |
+   | image                       | cirros (c17e391e-93e1-4480-9cf3-bf8623063e61) |
+   | key_name                    | None                                          |
+   | name                        | provider-instance                             |
+   | progress                    | 0                                             |
+   | project_id                  | cb015df53fb34d90b077e4c36ce35826              |
+   | properties                  |                                               |
+   | security_groups             | name='default'                                |
+   | status                      | BUILD                                         |
+   | updated                     | 2017-08-23T17:29:05Z                          |
+   | user_id                     | cb98fad69e84459bb48f42130d5c0ce5              |
+   | volumes_attached            |                                               |
+   +-----------------------------+-----------------------------------------------+
+
+   ```
+
+2. Check the status of your instance:
+
+   ```
+   root@controller:~# nova list
+   +--------------------------------------+-------------------+--------+------------+-------------+----------+
+   | ID                                   | Name              | Status | Task State | Power State | Networks |
+   +--------------------------------------+-------------------+--------+------------+-------------+----------+
+   | 02f54ef9-e867-4c1a-88f9-8eddd144da6f | provider-instance | BUILD  | scheduling | NOSTATE     |          |
+   +--------------------------------------+-------------------+--------+------------+-------------+----------+
+
+   root@controller:~# openstack server list
+   +--------------------------------------+-------------------+--------+----------+------------+
+   | ID                                   | Name              | Status | Networks | Image Name |
+   +--------------------------------------+-------------------+--------+----------+------------+
+   | 02f54ef9-e867-4c1a-88f9-8eddd144da6f | provider-instance | BUILD  |          | cirros     |
+   +--------------------------------------+-------------------+--------+----------+------------+
+
+   ```
+
+   The status changes from `BUILD` to `ACTIVE` when the build process successfully completes.
+
+### Access the instance using the virtual console
+
+1. Obtain a [Virtual Network Computing (VNC)](https://docs.openstack.org/newton/install-guide-ubuntu/common/glossary.html#term-virtual-network-computing-vnc) session URL for your instance and access it from a web browser:
+
+   ```
+   $ openstack console url show provider-instance
+
+   +-------+---------------------------------------------------------------------------------+
+   | Field | Value                                                                           |
+   +-------+---------------------------------------------------------------------------------+
+   | type  | novnc                                                                           |
+   | url   | http://controller:6080/vnc_auto.html?token=5eeccb47-525c-4918-ac2a-3ad1e9f1f493 |
+   +-------+---------------------------------------------------------------------------------+
+   ```
+
+   If your web browser runs on a host that cannot resolve the `controller` host name, you can replace `controller` with the IP address of the management interface on your controller node.
+
+   The CirrOS image includes conventional user name/password authentication and provides these credentials at the login prompt. After logging into CirrOS, we recommend that you verify network connectivity using `ping`.
+
+2. Verify access to the provider physical network gateway:
+
+   ```
+   $ ping -c 4 203.0.113.1
+
+   PING 203.0.113.1 (203.0.113.1) 56(84) bytes of data.
+   64 bytes from 203.0.113.1: icmp_req=1 ttl=64 time=0.357 ms
+   64 bytes from 203.0.113.1: icmp_req=2 ttl=64 time=0.473 ms
+   64 bytes from 203.0.113.1: icmp_req=3 ttl=64 time=0.504 ms
+   64 bytes from 203.0.113.1: icmp_req=4 ttl=64 time=0.470 ms
+
+   --- 203.0.113.1 ping statistics ---
+   4 packets transmitted, 4 received, 0% packet loss, time 2998ms
+   rtt min/avg/max/mdev = 0.357/0.451/0.504/0.055 ms
+
+   ```
+
+3. Verify access to the internet:
+
+   ```
+   $ ping -c 4 openstack.org
+
+   PING openstack.org (174.143.194.225) 56(84) bytes of data.
+   64 bytes from 174.143.194.225: icmp_req=1 ttl=53 time=17.4 ms
+   64 bytes from 174.143.194.225: icmp_req=2 ttl=53 time=17.5 ms
+   64 bytes from 174.143.194.225: icmp_req=3 ttl=53 time=17.7 ms
+   64 bytes from 174.143.194.225: icmp_req=4 ttl=53 time=17.5 ms
+
+   --- openstack.org ping statistics ---
+   4 packets transmitted, 4 received, 0% packet loss, time 3003ms
+   rtt min/avg/max/mdev = 17.431/17.575/17.734/0.143 ms
+
+   ```
+
+### Access the instance remotely
+
+1. Verify connectivity to the instance from the controller node or any host on the provider physical network:
+
+   ```
+   $ ping -c 4 203.0.113.103
+
+   PING 203.0.113.103 (203.0.113.103) 56(84) bytes of data.
+   64 bytes from 203.0.113.103: icmp_req=1 ttl=63 time=3.18 ms
+   64 bytes from 203.0.113.103: icmp_req=2 ttl=63 time=0.981 ms
+   64 bytes from 203.0.113.103: icmp_req=3 ttl=63 time=1.06 ms
+   64 bytes from 203.0.113.103: icmp_req=4 ttl=63 time=0.929 ms
+
+   --- 203.0.113.103 ping statistics ---
+   4 packets transmitted, 4 received, 0% packet loss, time 3002ms
+   rtt min/avg/max/mdev = 0.929/1.539/3.183/0.951 ms
+
+   ```
+
+2. Access your instance using SSH from the controller node or any host on the provider physical network:
+
+   ```
+   $ ssh cirros@203.0.113.103
+
+   The authenticity of host '203.0.113.102 (203.0.113.102)' can't be established.
+   RSA key fingerprint is ed:05:e9:e7:52:a0:ff:83:68:94:c7:d1:f2:f8:e2:e9.
+   Are you sure you want to continue connecting (yes/no)? yes
+   Warning: Permanently added '203.0.113.102' (RSA) to the list of known hosts.
+
+   ```
+
+If your instance does not launch or seem to work as you expect, see the [Instance Boot Failures](http://docs.openstack.org/ops-guide/ops-maintenance-compute.html#instances) section in OpenStack Operations Guide for more information or use one of the [*many other options*](https://docs.openstack.org/newton/install-guide-ubuntu/common/app-support.html) to seek assistance. We want your first installation to work!
+
+Return to [Launch an instance](https://docs.openstack.org/newton/install-guide-ubuntu/launch-instance.html#launch-instance-complete).
+
+
+
+
+
+## ISSUE DHCP failure in VM
+
+in VM console
+
+```
+$ ifup eth0
+udhcpc (v1.20.1) started
+Sending discover...
+Sending discover...
+Sending discover...
+Usage: /sbin/cirros-dhcpc <up|down>
+No lease, failing
+
+```
+
+in controller console
+
+```
+root@controller:~# tail -f /var/log/syslog
+Aug 24 03:06:30 controller dhclient[1166]: DHCPREQUEST of 146.11.41.129 on enp0s10 to 147.128.5.12 port 67 (xid=0x5d38ef7e)
+Aug 24 03:06:30 controller dhclient[1166]: DHCPACK of 146.11.41.129 from 147.128.5.12
+Aug 24 03:06:30 controller dhclient[1166]: Invalid domain list.
+Aug 24 03:06:30 controller dhclient[1166]: suspect value in domain_search option - discarded
+Aug 24 03:06:30 controller dhclient[1166]: Invalid domain list.
+Aug 24 03:06:30 controller dhclient[1166]: suspect value in domain_search option - discarded
+Aug 24 03:06:30 controller dhclient[1166]: Invalid domain list.
+Aug 24 03:06:30 controller dhclient[1166]: bound to 146.11.41.129 -- renewal in 12824 seconds.
+Aug 24 03:12:18 controller dnsmasq-dhcp[18894]: DHCPDISCOVER(ns-a6e0220e-ec) fa:16:3e:bb:c6:13
+Aug 24 03:12:18 controller dnsmasq-dhcp[18894]: DHCPOFFER(ns-a6e0220e-ec) 146.11.41.232 fa:16:3e:bb:c6:13
+Aug 24 03:13:19 controller dnsmasq-dhcp[18894]: DHCPDISCOVER(ns-a6e0220e-ec) fa:16:3e:bb:c6:13
+Aug 24 03:13:19 controller dnsmasq-dhcp[18894]: DHCPOFFER(ns-a6e0220e-ec) 146.11.41.232 fa:16:3e:bb:c6:13
+Aug 24 03:14:19 controller dnsmasq-dhcp[18894]: DHCPDISCOVER(ns-a6e0220e-ec) fa:16:3e:bb:c6:13
+Aug 24 03:14:19 controller dnsmasq-dhcp[18894]: DHCPOFFER(ns-a6e0220e-ec) 146.11.41.232 fa:16:3e:bb:c6:13
+
+```
+
+By tcpdump from controllor bridge, it's found the DHCPOFFER was sent to VM:
+
+```
+root@controller:~# tcpdump -i  brq2a33434f-ba -vv port 67 or port 68 -e -n
+tcpdump: listening on brq2a33434f-ba, link-type EN10MB (Ethernet), capture size 262144 bytes
+04:04:22.830138 fa:16:3e:bb:c6:13 > ff:ff:ff:ff:ff:ff, ethertype IPv4 (0x0800), length 332: (tos 0x0, ttl 64, id 0, offset 0, flags [none], proto UDP (17), length 318)
+    0.0.0.0.68 > 255.255.255.255.67: [udp sum ok] BOOTP/DHCP, Request from fa:16:3e:bb:c6:13, length 290, xid 0x1fac2751, Flags [none] (0x0000)
+          Client-Ethernet-Address fa:16:3e:bb:c6:13
+          Vendor-rfc1048 Extensions
+            Magic Cookie 0x63825363
+            DHCP-Message Option 53, length 1: Discover
+            Client-ID Option 61, length 7: ether fa:16:3e:bb:c6:13
+            MSZ Option 57, length 2: 576
+            Parameter-Request Option 55, length 9:
+              Subnet-Mask, Default-Gateway, Domain-Name-Server, Hostname
+              Domain-Name, MTU, BR, NTP
+              Classless-Static-Route
+            Vendor-Class Option 60, length 12: "udhcp 1.20.1"
+            Hostname Option 12, length 6: "cirros"
+04:04:22.831801 fa:16:3e:8b:53:5e > fa:16:3e:bb:c6:13, ethertype IPv4 (0x0800), length 370: (tos 0xc0, ttl 64, id 3044, offset 0, flags [none], proto UDP (17), length 356)
+    146.11.41.230.67 > 146.11.41.232.68: [udp sum ok] BOOTP/DHCP, Reply, length 328, xid 0x1fac2751, Flags [none] (0x0000)
+          Your-IP 146.11.41.232
+          Server-IP 146.11.41.230
+          Client-Ethernet-Address fa:16:3e:bb:c6:13
+          Vendor-rfc1048 Extensions
+            Magic Cookie 0x63825363
+            DHCP-Message Option 53, length 1: Offer
+            Server-ID Option 54, length 4: 146.11.41.230
+            Lease-Time Option 51, length 4: 86400
+            RN Option 58, length 4: 43200
+            RB Option 59, length 4: 75600
+            Subnet-Mask Option 1, length 4: 255.255.254.0
+            BR Option 28, length 4: 146.11.41.255
+            Domain-Name Option 15, length 14: "openstacklocal"
+            Default-Gateway Option 3, length 4: 146.11.40.1
+            Classless-Static-Route Option 121, length 14: (169.254.169.254/32:146.11.41.230),(default:146.11.40.1)
+            Domain-Name-Server Option 6, length 4: 147.128.5.12
+            MTU Option 26, length 2: 1500
+04:04:52.504181 08:2e:5f:5d:63:00 > ff:ff:ff:ff:ff:ff, ethertype IPv4 (0x0800), length 358: (tos 0x0, ttl 120, id 5320, offset 0, flags [DF], proto UDP (17), length 344)
+
+```
+
+While from compute , tcpdump the br-int bridge shows it's not received 
+
+```
+root@compute:~# tcpdump -i brq2a33434f-ba -vv port 67 or port 68 -e -n
+tcpdump: listening on brq2a33434f-ba, link-type EN10MB (Ethernet), capture size 262144 bytes
+03:51:04.456668 fa:16:3e:bb:c6:13 > ff:ff:ff:ff:ff:ff, ethertype IPv4 (0x0800), length 332: (tos 0x0, ttl 64, id 0, offset 0, flags [none], proto UDP (17), length 318)
+    0.0.0.0.68 > 255.255.255.255.67: [udp sum ok] BOOTP/DHCP, Request from fa:16:3e:bb:c6:13, length 290, xid 0xe5e8f024, Flags [none] (0x0000)
+          Client-Ethernet-Address fa:16:3e:bb:c6:13
+          Vendor-rfc1048 Extensions
+            Magic Cookie 0x63825363
+            DHCP-Message Option 53, length 1: Discover
+            Client-ID Option 61, length 7: ether fa:16:3e:bb:c6:13
+            MSZ Option 57, length 2: 576
+            Parameter-Request Option 55, length 9:
+              Subnet-Mask, Default-Gateway, Domain-Name-Server, Hostname
+              Domain-Name, MTU, BR, NTP
+              Classless-Static-Route
+            Vendor-Class Option 60, length 12: "udhcp 1.20.1"
+            Hostname Option 12, length 6: "cirros"
+03:51:30.022360 08:2e:5f:5d:63:00 > ff:ff:ff:ff:ff:ff, ethertype IPv4 (0x0800), length 358: (tos 0x0, ttl 120, id 29901, offset 0, flags [DF], proto UDP (17), length 344)
+    147.128.5.12.67 > 255.255.255.255.68: [udp sum ok] BOOTP/DHCP, Reply, length 316, xid 0x4a42e788, Flags [Broadcast] (0x8000)
+          Client-IP 146.11.40.250
+          Gateway-IP 146.11.40.1
+          Client-Ethernet-Address d0:bf:9c:df:7a:a5
+          Vendor-rfc1048 Extensions
+            Magic Cookie 0x63825363
+            DHCP-Message Option 53, length 1: ACK
+            Server-ID Option 54, length 4: 147.128.5.12
+            Subnet-Mask Option 1, length 4: 255.255.254.0
+            Vendor-Option Option 43, length 5: 220.3.78.65.80
+            Domain-Name Option 15, length 18: "cn.ao.ericsson.se^@"
+            Default-Gateway Option 3, length 4: 146.11.40.1
+            Domain-Name-Server Option 6, length 12: 147.128.5.12,193.181.14.11,193.181.14.10
+            Netbios-Name-Server Option 44, length 8: 146.11.115.50,146.11.116.30
+            Netbios-Node Option 46, length 1: h-node
+03:51:30.023490 2c:76:8a:1f:47:00 > ff:ff:ff:ff:ff:ff, ethertype IPv4 (0x0800), length 358: (tos 0x0, ttl 119, id 2187, offset 0, flags [DF], proto UDP (17), length 344)
+
+```
+
