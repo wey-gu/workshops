@@ -1,0 +1,1 @@
+# Openstack from scratch 
