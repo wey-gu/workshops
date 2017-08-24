@@ -1,3 +1,5 @@
+
+
 # Installation Guide
 
 > ref https://docs.openstack.org/install-guide
@@ -59,7 +61,7 @@ Net2：
 	Linux device: eth2
 
 Net3：
-	Network name: VirtualBox  Bridged
+	Network name: VirtualBox  Bridged // for accessing network or remote access purpose
 	Purpose: Internet
 	DHCP: enable
 	IP block: 192.168.199.0/24
@@ -1269,7 +1271,7 @@ Before you install and configure the Compute service, you must create databases,
 
    ```
 
-### Install and configure components[¶](https://docs.openstack.org/ocata/install-guide-ubuntu/nova-controller-install.html#install-and-configure-components)
+### Install and configure components
 
  
 
@@ -2147,7 +2149,7 @@ The compute node handles connectivity and [security groups](https://docs.opensta
 # apt install neutron-linuxbridge-agent -y
 ```
 
-## Configure the common component[¶](https://docs.openstack.org/newton/install-guide-ubuntu/neutron-compute-install.html#configure-the-common-component)
+## Configure the common component
 
 The Networking common component configuration includes the authentication mechanism, message queue, and plug-in.
 
@@ -2357,7 +2359,7 @@ root@controller:~# openstack network agent list --max-width 70
 
 The output should indicate three agents on the controller node and one agent on each compute node.
 
-## Congratulations let's try booting an instance
+## Congratulations! Let's try booting an instance
 
 
 
@@ -2365,7 +2367,34 @@ The output should indicate three agents on the controller node and one agent on 
 
 >  ref: https://docs.openstack.org/newton/install-guide-ubuntu/launch-instance-networks-provider.html
 
+
+
+> The --provider:physical_network provider and --provider:network_type flat options connect the flat virtual network to the flat (native/untagged) physical network on the eth1 interface on the host
+
+标注: 下边的创建网络里 ，参数:
+
 ```
+--provider-network-type flat \
+--provider-physical-network provider
+```
+
+对应的是:
+
+```
+
+/etc/neutron/plugins/ml2/ml2_conf.ini
+[ml2_type_flat]
+flat_networks = provider
+
+
+/etc/neutron/plugins/ml2/linuxbridge_agent.ini
+[linux_bridge]
+physical_interface_mappings = provider:enp0s10
+```
+
+
+
+```bash
 root@controller:~# . admin-openrc
 root@controller:~# openstack network create  --share --external \
 >   --provider-physical-network provider \
@@ -2758,13 +2787,11 @@ If your instance does not launch or seem to work as you expect, see the [Instanc
 
 Return to [Launch an instance](https://docs.openstack.org/newton/install-guide-ubuntu/launch-instance.html#launch-instance-complete).
 
+## [ISSUE] DHCP failure in VM troubleshooting
 
+>  ref: https://docs.openstack.org/neutron/pike/admin/intro-basic-networking.html
 
-
-
-## ISSUE DHCP failure in VM
-
-in VM console
+in VM console ( initial dhcp discover)
 
 ```
 $ ifup eth0
@@ -2777,7 +2804,7 @@ No lease, failing
 
 ```
 
-in controller console
+in controller console (monitor log)
 
 ```
 root@controller:~# tail -f /var/log/syslog
@@ -2878,4 +2905,443 @@ tcpdump: listening on brq2a33434f-ba, link-type EN10MB (Ethernet), capture size 
 03:51:30.023490 2c:76:8a:1f:47:00 > ff:ff:ff:ff:ff:ff, ethertype IPv4 (0x0800), length 358: (tos 0x0, ttl 119, id 2187, offset 0, flags [DF], proto UDP (17), length 344)
 
 ```
+
+### Conclusion: 
+
+the DHCP offer was sent out from DHCP agent dnsmasq, but the package cannot be captured from host bridge connecting to vm eth0. the issue is located in the provider network router, the ECN router 146.11.40.1 in our office.
+
+By searching online, there is a tech called DHCP snooping to prevent multiple dhcp server in one LAN from router, which makes sense. 
+
+ ## Cinder on controller 
+
+Here we provide a iSCSI driver backend cinder practice 
+
+>  ref: https://docs.openstack.org/ocata/install-guide-ubuntu/cinder.html
+
+The OpenStack Block Storage service (cinder) adds persistent storage to a virtual machine. Block Storage provides an infrastructure for managing volumes, and interacts with OpenStack Compute to provide volumes for instances. The service also enables management of volume snapshots, and volume types.
+
+The Block Storage service consists of the following components:
+
+- cinder-api
+
+  Accepts API requests, and routes them to the `cinder-volume` for action.
+
+- cinder-volume
+
+  Interacts directly with the Block Storage service, and processes such as the `cinder-scheduler`. It also interacts with these processes through a message queue. The `cinder-volume` service responds to read and write requests sent to the Block Storage service to maintain state. It can interact with a variety of storage providers through a driver architecture.
+
+- cinder-scheduler daemon
+
+  Selects the optimal storage provider node on which to create the volume. A similar component to the `nova-scheduler`.
+
+- cinder-backup daemon
+
+  The `cinder-backup` service provides backing up volumes of any type to a backup storage provider. Like the `cinder-volume` service, it can interact with a variety of storage providers through a driver architecture.
+
+- Messaging queue
+
+  Routes information between the Block Storage processes.
+
+### Install and configure controller node
+
+This section describes how to install and configure the Block Storage service, code-named cinder, on the controller node. This service requires at least one additional storage node that provides volumes to instances.
+
+### Prerequisites
+
+Before you install and configure the Block Storage service, you must create a database, service credentials, and API endpoints.
+
+1. To create the database, complete these steps:
+
+   - Use the database access client to connect to the database server as the `root` user:
+
+     ```
+     # mysql
+     ```
+
+
+   - Create the `cinder` database:
+
+     ```
+     MariaDB [(none)]> CREATE DATABASE cinder;
+     ```
+
+   - Grant proper access to the `cinder` database:
+
+     ```
+     MariaDB [(none)]> GRANT ALL PRIVILEGES ON cinder.* TO 'cinder'@'localhost' \
+       IDENTIFIED BY 'CINDER_DBPASS';
+     MariaDB [(none)]> GRANT ALL PRIVILEGES ON cinder.* TO 'cinder'@'%' \
+       IDENTIFIED BY 'CINDER_DBPASS';
+     ```
+
+     Replace `CINDER_DBPASS` with a suitable password.
+
+   - Exit the database access client.
+
+2. Source the `admin` credentials to gain access to admin-only CLI commands:
+
+   ```
+   $ . admin-openrc
+
+   ```
+
+3. To create the service credentials, complete these steps:
+
+   - Create a `cinder` user:
+
+     ```
+     $ openstack user create --domain default --password-prompt cinder
+
+     User Password:
+     Repeat User Password:
+     +---------------------+----------------------------------+
+     | Field               | Value                            |
+     +---------------------+----------------------------------+
+     | domain_id           | default                          |
+     | enabled             | True                             |
+     | id                  | 9d7e33de3e1a498390353819bc7d245d |
+     | name                | cinder                           |
+     | options             | {}                               |
+     | password_expires_at | None                             |
+     +---------------------+----------------------------------+
+     ```
+
+   - Add the `admin` role to the `cinder` user:
+
+     ```
+     $ openstack role add --project service --user cinder admin
+     ```
+
+     This command provides no output.
+
+   - Create the `cinderv2` and `cinderv3` service entities:
+
+     ```
+     $ openstack service create --name cinderv2 \
+       --description "OpenStack Block Storage" volumev2
+
+     +-------------+----------------------------------+
+     | Field       | Value                            |
+     +-------------+----------------------------------+
+     | description | OpenStack Block Storage          |
+     | enabled     | True                             |
+     | id          | eb9fd245bdbc414695952e93f29fe3ac |
+     | name        | cinderv2                         |
+     | type        | volumev2                         |
+     +-------------+----------------------------------+
+     ```
+
+     ```
+     $ openstack service create --name cinderv3 \
+       --description "OpenStack Block Storage" volumev3
+
+     +-------------+----------------------------------+
+     | Field       | Value                            |
+     +-------------+----------------------------------+
+     | description | OpenStack Block Storage          |
+     | enabled     | True                             |
+     | id          | ab3bbbef780845a1a283490d281e7fda |
+     | name        | cinderv3                         |
+     | type        | volumev3                         |
+     +-------------+----------------------------------+
+     ```
+
+   The Block Storage services require two service entities.
+
+4. Create the Block Storage service API endpoints:
+
+   ```
+   $ openstack endpoint create --region RegionOne \
+     volumev2 public http://controller:8776/v2/%\(project_id\)s
+
+   +--------------+------------------------------------------+
+   | Field        | Value                                    |
+   +--------------+------------------------------------------+
+   | enabled      | True                                     |
+   | id           | 513e73819e14460fb904163f41ef3759         |
+   | interface    | public                                   |
+   | region       | RegionOne                                |
+   | region_id    | RegionOne                                |
+   | service_id   | eb9fd245bdbc414695952e93f29fe3ac         |
+   | service_name | cinderv2                                 |
+   | service_type | volumev2                                 |
+   | url          | http://controller:8776/v2/%(project_id)s |
+   +--------------+------------------------------------------+
+
+   $ openstack endpoint create --region RegionOne \
+     volumev2 internal http://controller:8776/v2/%\(project_id\)s
+
+   +--------------+------------------------------------------+
+   | Field        | Value                                    |
+   +--------------+------------------------------------------+
+   | enabled      | True                                     |
+   | id           | 6436a8a23d014cfdb69c586eff146a32         |
+   | interface    | internal                                 |
+   | region       | RegionOne                                |
+   | region_id    | RegionOne                                |
+   | service_id   | eb9fd245bdbc414695952e93f29fe3ac         |
+   | service_name | cinderv2                                 |
+   | service_type | volumev2                                 |
+   | url          | http://controller:8776/v2/%(project_id)s |
+   +--------------+------------------------------------------+
+
+   $ openstack endpoint create --region RegionOne \
+     volumev2 admin http://controller:8776/v2/%\(project_id\)s
+
+   +--------------+------------------------------------------+
+   | Field        | Value                                    |
+   +--------------+------------------------------------------+
+   | enabled      | True                                     |
+   | id           | e652cf84dd334f359ae9b045a2c91d96         |
+   | interface    | admin                                    |
+   | region       | RegionOne                                |
+   | region_id    | RegionOne                                |
+   | service_id   | eb9fd245bdbc414695952e93f29fe3ac         |
+   | service_name | cinderv2                                 |
+   | service_type | volumev2                                 |
+   | url          | http://controller:8776/v2/%(project_id)s |
+   +--------------+------------------------------------------+
+   ```
+
+   ```
+   $ openstack endpoint create --region RegionOne \
+     volumev3 public http://controller:8776/v3/%\(project_id\)s
+
+   +--------------+------------------------------------------+
+   | Field        | Value                                    |
+   +--------------+------------------------------------------+
+   | enabled      | True                                     |
+   | id           | 03fa2c90153546c295bf30ca86b1344b         |
+   | interface    | public                                   |
+   | region       | RegionOne                                |
+   | region_id    | RegionOne                                |
+   | service_id   | ab3bbbef780845a1a283490d281e7fda         |
+   | service_name | cinderv3                                 |
+   | service_type | volumev3                                 |
+   | url          | http://controller:8776/v3/%(project_id)s |
+   +--------------+------------------------------------------+
+
+   $ openstack endpoint create --region RegionOne \
+     volumev3 internal http://controller:8776/v3/%\(project_id\)s
+
+   +--------------+------------------------------------------+
+   | Field        | Value                                    |
+   +--------------+------------------------------------------+
+   | enabled      | True                                     |
+   | id           | 94f684395d1b41068c70e4ecb11364b2         |
+   | interface    | internal                                 |
+   | region       | RegionOne                                |
+   | region_id    | RegionOne                                |
+   | service_id   | ab3bbbef780845a1a283490d281e7fda         |
+   | service_name | cinderv3                                 |
+   | service_type | volumev3                                 |
+   | url          | http://controller:8776/v3/%(project_id)s |
+   +--------------+------------------------------------------+
+
+   $ openstack endpoint create --region RegionOne \
+     volumev3 admin http://controller:8776/v3/%\(project_id\)s
+
+   +--------------+------------------------------------------+
+   | Field        | Value                                    |
+   +--------------+------------------------------------------+
+   | enabled      | True                                     |
+   | id           | 4511c28a0f9840c78bacb25f10f62c98         |
+   | interface    | admin                                    |
+   | region       | RegionOne                                |
+   | region_id    | RegionOne                                |
+   | service_id   | ab3bbbef780845a1a283490d281e7fda         |
+   | service_name | cinderv3                                 |
+   | service_type | volumev3                                 |
+   | url          | http://controller:8776/v3/%(project_id)s |
+   +--------------+------------------------------------------+
+   ```
+
+   The Block Storage services require endpoints for each service entity.
+
+### Install and configure components
+
+Install the packages:
+
+```
+# apt install cinder-api cinder-scheduler
+```
+
+Edit the `/etc/cinder/cinder.conf` file and complete the following actions:
+
+- In the `[database]` section, configure database access:
+
+  ```
+  [database]
+  # ...
+  connection = mysql+pymysql://cinder:CINDER_DBPASS@controller/cinder
+  ```
+
+  Replace `CINDER_DBPASS` with the password you chose for the Block Storage database.
+
+- In the `[DEFAULT]` section, configure `RabbitMQ` message queue access:
+
+  ```
+  [DEFAULT]
+  # ...
+  transport_url = rabbit://openstack:RABBIT_PASS@controller
+  ```
+
+  Replace `RABBIT_PASS` with the password you chose for the `openstack` account in `RabbitMQ`.
+
+- In the `[DEFAULT]` and `[keystone_authtoken]` sections, configure Identity service access:
+
+  ```
+  [DEFAULT]
+  # ...
+  auth_strategy = keystone
+
+  [keystone_authtoken]
+  # ...
+  auth_uri = http://controller:5000
+  auth_url = http://controller:35357
+  memcached_servers = controller:11211
+  auth_type = password
+  project_domain_name = default
+  user_domain_name = default
+  project_name = service
+  username = cinder
+  password = cinder
+  ```
+
+  Replace `password` with the password you chose for the `cinder` user in the Identity service.
+
+  Comment out or remove any other options in the `[keystone_authtoken]` section.
+
+- In the `[DEFAULT]` section, configure the `my_ip` option to use the management interface IP address of the controller node:
+
+  ```
+  [DEFAULT]
+  # ...
+  my_ip = 10.20.0.10
+  ```
+
+
+- In the `[oslo_concurrency]` section, configure the lock path:
+
+  ```
+  [oslo_concurrency]
+  # ...
+  lock_path = /var/lib/cinder/tmp
+  ```
+
+Populate the Block Storage database:
+
+```
+# su -s /bin/sh -c "cinder-manage db sync" cinder
+```
+
+Ignore any deprecation messages in this output.
+
+### Configure Compute to use Block Storage
+
+- Edit the `/etc/nova/nova.conf` file and add the following to it:
+
+  ```
+  [cinder]
+  os_region_name = RegionOne
+
+  ```
+
+### Finalize installation
+
+1. Restart the Compute API service:
+
+   ```
+   # service nova-api restart
+   ```
+
+2. Restart the Block Storage services:
+
+   ```
+   # service cinder-scheduler restart
+   # service apache2 restart
+   ```
+
+## Cinder on storage backend node
+
+### configure storage network for compute
+
+Check nic name
+
+```
+root@compute:~# dmesg | grep renamed
+[    2.730898] e1000 0000:00:09.0 enp0s9: renamed from eth2
+[    2.731826] e1000 0000:00:08.0 enp0s8: renamed from eth1
+[    2.732819] e1000 0000:00:0a.0 enp0s10: renamed from eth3
+[    2.735645] e1000 0000:00:03.0 enp0s3: renamed from eth0
+```
+
+`eth2` was named as `enp0s9`
+
+Edit `/etc/network/interfaces`
+
+```
+# storage network eth2
+auto enp0s9
+iface enp0s9 inet static
+address 192.168.199.20
+netmask 255.255.255.0
+
+```
+
+```
+# ifup enp0s9
+```
+
+### Create cinder machine: storage
+
+## Storage actions
+
+### management network eth0 (enp0s3) and eth2(enp0s9) 
+
+Edit `/etc/network/interfaces`
+
+```
+# management network eth0
+
+auto enp0s3
+iface enp0s3 inet static
+address 10.20.0.30
+netmask 255.255.255.0
+```
+
+```
+# storage network eth2
+auto enp0s9
+iface enp0s9 inet static
+address 192.168.199.30
+netmask 255.255.255.0
+```
+
+```
+//start the two nics
+# ifup enp0s3
+# ifup enp0s9
+```
+
+
+
+### configure NTP by editing `/etc/chrony/chrony.conf`
+
+```
+server 10.20.0.10 iburst
+```
+
+change hostname and hosts
+
+```
+# echo conpute > /etc/hostname
+# echo 10.20.0.10    controller >> /etc/hosts
+# echo 10.20.0.20    compute >> /etc/hosts
+# hostname compute
+```
+
+https://docs.openstack.org/ocata/install-guide-ubuntu/cinder-storage-install.html
+
+
 
