@@ -6,6 +6,10 @@
 
 Ubuntu was chosen as host OS.
 
+> "It's a good way to learn by installing it manually for as many services as you could :-) ."
+>
+> ​                                                                                                                     Wey Gu 
+
 [TOC]
 
 ## Security
@@ -64,7 +68,7 @@ Net3：
 	Network name: VirtualBox  Bridged // for accessing network or remote access purpose
 	Purpose: Internet
 	DHCP: enable
-	IP block: 192.168.199.0/24
+	IP block: <depend on your network>
 	Linux device: eth3
 ```
 
@@ -168,6 +172,8 @@ down ip link set dev $IFACE down
   > # vi /etc/apt/apt.conf.d/90proxy
   > Acquire::http::Proxy "http://www-proxy.exu.ericsson.se:8080";
   > Acquire::https::Proxy "http://www-proxy.exu.ericsson.se:8080";
+  >
+  > # sed -i -e 's/cn/us/g' /etc/apt/sources.list
   > ```
 
   ```
@@ -1469,7 +1475,7 @@ Default configuration files vary by distribution. You might need to add these se
   # service nova-novncproxy restart
   ```
 
-## Nova Install and configure a compute node
+### Nova Install and configure a compute node
 
 This section describes how to install and configure the Compute service on a compute node. The service supports several [hypervisors](https://docs.openstack.org/newton/install-guide-ubuntu/common/glossary.html#term-hypervisor) to deploy [instances](https://docs.openstack.org/newton/install-guide-ubuntu/common/glossary.html#term-instance) or [VMs](https://docs.openstack.org/newton/install-guide-ubuntu/common/glossary.html#term-virtual-machine-vm). For simplicity, this configuration uses the [QEMU](https://docs.openstack.org/newton/install-guide-ubuntu/common/glossary.html#term-quick-emulator-qemu) hypervisor with the [KVM](https://docs.openstack.org/newton/install-guide-ubuntu/common/glossary.html#term-kernel-based-vm-kvm) extension on compute nodes that support hardware acceleration for virtual machines. 
 
@@ -2149,7 +2155,7 @@ The compute node handles connectivity and [security groups](https://docs.opensta
 # apt install neutron-linuxbridge-agent -y
 ```
 
-## Configure the common component
+### Configure the common component
 
 The Networking common component configuration includes the authentication mechanism, message queue, and plug-in.
 
@@ -2791,6 +2797,8 @@ Return to [Launch an instance](https://docs.openstack.org/newton/install-guide-u
 
 >  ref: https://docs.openstack.org/neutron/pike/admin/intro-basic-networking.html
 
+### what it is like
+
 in VM console ( initial dhcp discover)
 
 ```
@@ -2911,6 +2919,10 @@ tcpdump: listening on brq2a33434f-ba, link-type EN10MB (Ethernet), capture size 
 the DHCP offer was sent out from DHCP agent dnsmasq, but the package cannot be captured from host bridge connecting to vm eth0. the issue is located in the provider network router, the ECN router 146.11.40.1 in our office.
 
 By searching online, there is a tech called DHCP snooping to prevent multiple dhcp server in one LAN from router, which makes sense. 
+
+
+
+## Cinder
 
  ## Cinder on controller 
 
@@ -3262,7 +3274,7 @@ Ignore any deprecation messages in this output.
    # service apache2 restart
    ```
 
-## Cinder on storage backend node
+## Cinder on block storage node
 
 ### configure storage network for compute
 
@@ -3295,9 +3307,11 @@ netmask 255.255.255.0
 
 ### Create cinder machine: storage
 
-## Storage actions
+## Storage actions & cinder on storage node
 
-### management network eth0 (enp0s3) and eth2(enp0s9) 
+>  Clone it from base VM and add a virtual disk for storage vm
+
+### Management net eth0 (enp0s3) and storage net eth2 (enp0s9) 
 
 Edit `/etc/network/interfaces`
 
@@ -3324,8 +3338,6 @@ netmask 255.255.255.0
 # ifup enp0s9
 ```
 
-
-
 ### configure NTP by editing `/etc/chrony/chrony.conf`
 
 ```
@@ -3335,13 +3347,545 @@ server 10.20.0.10 iburst
 change hostname and hosts
 
 ```
-# echo conpute > /etc/hostname
+# echo storage > /etc/hostname
 # echo 10.20.0.10    controller >> /etc/hosts
 # echo 10.20.0.20    compute >> /etc/hosts
-# hostname compute
+# hostname storage
 ```
 
-https://docs.openstack.org/ocata/install-guide-ubuntu/cinder-storage-install.html
+### Check new disk was there already
+
+check by `fdisk -l` , /dev/sdb is there :-) .
+
+```
+root@storage:~# fdisk -l
+Disk /dev/sda: 50 GiB, 53687091200 bytes, 104857600 sectors
+Units: sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+Disklabel type: dos
+Disk identifier: 0x3ce50a75
+
+Device     Boot   Start       End   Sectors  Size Id Type
+/dev/sda1  *       2048    999423    997376  487M 83 Linux
+/dev/sda2       1001470 104855551 103854082 49.5G  5 Extended
+/dev/sda5       1001472 104855551 103854080 49.5G 8e Linux LVM
+
+
+Disk /dev/sdb: 50 GiB, 53687091200 bytes, 104857600 sectors
+Units: sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+
+
+Disk /dev/mapper/ubuntu--vg-root: 45.5 GiB, 48876224512 bytes, 95461376 sectors
+Units: sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+
+
+Disk /dev/mapper/ubuntu--vg-swap_1: 4 GiB, 4294967296 bytes, 8388608 sectors
+Units: sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+```
 
 
 
+### Install and configure a storage node
+
+This section describes how to install and configure storage nodes for the Block Storage service. For simplicity, this configuration references one storage node with an empty local block storage device. The instructions use `/dev/sdb`, but you can substitute a different value for your particular node.
+
+The service provisions logical volumes on this device using the [LVM](https://docs.openstack.org/ocata/install-guide-ubuntu/common/glossary.html#term-logical-volume-manager-lvm) driver and provides them to instances via [iSCSI](https://docs.openstack.org/ocata/install-guide-ubuntu/common/glossary.html#term-iscsi-qualified-name-iqn) transport. You can follow these instructions with minor modifications to horizontally scale your environment with additional storage nodes.
+
+### Prerequisites
+
+Before you install and configure the Block Storage service on the storage node, you must prepare the storage device.
+
+ 
+
+Perform these steps on the storage node.
+
+1. Install the supporting utility packages:
+
+   ```
+   # apt install lvm2
+   ```
+
+    Some distributions include LVM by default.
+
+2. Create the LVM physical volume `/dev/sdb`:
+
+   ```
+   # pvcreate /dev/sdb
+
+   Physical volume "/dev/sdb" successfully created
+   ```
+
+3. Create the LVM volume group `cinder-volumes`:
+
+   ```
+   # vgcreate cinder-volumes /dev/sdb
+
+   Volume group "cinder-volumes" successfully created
+   ```
+
+   The Block Storage service creates logical volumes in this volume group.
+
+4. Only instances can access Block Storage volumes. However, the underlying operating system manages the devices associated with the volumes. By default, the LVM volume scanning tool scans the `/dev` directory for block storage devices that contain volumes. If projects use LVM on their volumes, the scanning tool detects these volumes and attempts to cache them which can cause a variety of problems with both the underlying operating system and project volumes. You must reconfigure LVM to scan only the devices that contain the `cinder-volumes` volume group. Edit the `/etc/lvm/lvm.conf` file and complete the following actions:
+
+   - In the `devices` section, add a filter that accepts the `/dev/sdb` device and rejects all other devices:
+
+     ```
+     devices {
+     ...
+     filter = [ "a/sdb/", "r/.*/"]
+     ```
+
+     Each item in the filter array begins with `a` for **accept** or `r` for **reject** and includes a regular expression for the device name. The array must end with `r/.*/` to reject any remaining devices. You can use the **vgs -vvvv** command to test filters.
+
+     If your storage nodes use LVM on the operating system disk, you must also add the associated device to the filter. For example, if the `/dev/sda` device contains the operating system:
+
+     ```
+     filter = [ "a/sda/", "a/sdb/", "r/.*/"]
+
+     ```
+
+     Similarly, if your compute nodes use LVM on the operating system disk, you must also modify the filter in the`/etc/lvm/lvm.conf` file on those nodes to include only the operating system disk. For example, if the `/dev/sda`device contains the operating system:
+
+     ```
+     filter = [ "a/sda/", "r/.*/"]
+     ```
+
+### Install and configure components
+
+Install the packages:
+
+```
+# apt install cinder-volume -y
+```
+
+1. Edit the `/etc/cinder/cinder.conf` file and complete the following actions:
+
+   - In the `[database]` section, configure database access:
+
+     ```
+     [database]
+     # ...
+     connection = mysql+pymysql://cinder:CINDER_DBPASS@controller/cinder
+     ```
+
+     Replace `CINDER_DBPASS` with the password you chose for the Block Storage database.
+
+   - In the `[DEFAULT]` section, configure `RabbitMQ` message queue access:
+
+     ```
+     [DEFAULT]
+     # ...
+     transport_url = rabbit://openstack:RABBIT_PASS@controller
+     ```
+
+     Replace `RABBIT_PASS` with the password you chose for the `openstack` account in `RabbitMQ`.
+
+   - In the `[DEFAULT]` and `[keystone_authtoken]` sections, configure Identity service access:
+
+     ```
+     [DEFAULT]
+     # ...
+     auth_strategy = keystone
+
+     [keystone_authtoken]
+     # ...
+     auth_uri = http://controller:5000
+     auth_url = http://controller:35357
+     memcached_servers = controller:11211
+     auth_type = password
+     project_domain_name = default
+     user_domain_name = default
+     project_name = service
+     username = cinder
+     password = cinder
+     ```
+
+     Replace `password` with the password you chose for the `cinder` user in the Identity service.
+
+     Comment out or remove any other options in the `[keystone_authtoken]` section.
+
+   - In the `[DEFAULT]` section, configure the `my_ip` option:
+
+     ```
+     [DEFAULT]
+     # ...
+     my_ip = STORAGE_INTERFACE_IP_ADDRESS
+     ```
+
+     Replace `STORAGE_INTERFACE_IP_ADDRESS` with the IP address of the storage network (eth2).
+
+
+   - In the `[lvm]` section, configure the LVM back end with the LVM driver, `cinder-volumes` volume group, iSCSI protocol, and appropriate iSCSI service:
+
+     ```
+     [lvm]
+     # ...
+     volume_driver = cinder.volume.drivers.lvm.LVMVolumeDriver
+     volume_group = cinder-volumes
+     iscsi_protocol = iscsi
+     iscsi_helper = tgtadm
+     ```
+
+
+   - In the `[DEFAULT]` section, enable the LVM back end:
+
+     ```
+     [DEFAULT]
+     # ...
+     enabled_backends = lvm
+     ```
+
+     Back-end names are arbitrary. As an example, this guide uses the name of the driver as the name of the back end.
+
+   - In the `[DEFAULT]` section, configure the location of the Image service API:
+
+     ```
+     [DEFAULT]
+     # ...
+     glance_api_servers = http://controller:9292
+     ```
+
+   - In the `[oslo_concurrency]` section, configure the lock path:
+
+     ```
+     [oslo_concurrency]
+     # ...
+     lock_path = /var/lib/cinder/tmp
+     ```
+
+### Finalize installation
+
+1. Restart the Block Storage volume service including its dependencies:
+
+   ```
+   # service tgt restart
+   # service cinder-volume restart
+   ```
+
+
+
+### Verify operation
+
+Verify operation of the Block Storage service. 
+
+Perform these commands on the controller node.
+
+1. Source the `admin` credentials to gain access to admin-only CLI commands:
+
+   ```
+   $ . admin-openrc
+   ```
+
+2. List service components to verify successful launch of each process:
+
+   ```
+   root@controller:~# openstack volume service list
+   +------------------+-------------+------+---------+-------+----------------------------+
+   | Binary           | Host        | Zone | Status  | State | Updated At                 |
+   +------------------+-------------+------+---------+-------+----------------------------+
+   | cinder-scheduler | controller  | nova | enabled | up    | 2017-08-24T14:35:44.000000 |
+   | cinder-volume    | storage@lvm | nova | enabled | up    | 2017-08-24T14:35:39.000000 |
+   +------------------+-------------+------+---------+-------+----------------------------+
+   ```
+
+
+
+## Let's try something on block storage!
+
+### Create a volume
+
+1. Source the `demo` credentials to perform the following steps as a non-administrative project:
+
+   ```
+   $ . demo-openrc
+   ```
+
+2. Create a 1 GB volume:
+
+   ```
+   $ openstack volume create --size 1 volume1
+
+   +---------------------+--------------------------------------+
+   | Field               | Value                                |
+   +---------------------+--------------------------------------+
+   | attachments         | []                                   |
+   | availability_zone   | nova                                 |
+   | bootable            | false                                |
+   | consistencygroup_id | None                                 |
+   | created_at          | 2016-03-08T14:30:48.391027           |
+   | description         | None                                 |
+   | encrypted           | False                                |
+   | id                  | a1e8be72-a395-4a6f-8e07-856a57c39524 |
+   | multiattach         | False                                |
+   | name                | volume1                              |
+   | properties          |                                      |
+   | replication_status  | disabled                             |
+   | size                | 1                                    |
+   | snapshot_id         | None                                 |
+   | source_volid        | None                                 |
+   | status              | creating                             |
+   | type                | None                                 |
+   | updated_at          | None                                 |
+   | user_id             | 684286a9079845359882afc3aa5011fb     |
+   +---------------------+--------------------------------------+
+   ```
+
+3. After a short time, the volume status should change from `creating` to `available`:
+
+   ```
+   root@controller:~# openstack volume list
+   +--------------------------------------+--------------+-----------+------+-------------+
+   | ID                                   | Display Name | Status    | Size | Attached to |
+   +--------------------------------------+--------------+-----------+------+-------------+
+   | 81ffed40-ed71-495d-bfa9-8fb8c72cf222 | volume1      | available |    1 |             |
+   +--------------------------------------+--------------+-----------+------+-------------+
+   ```
+
+4. check where it is?
+
+```
+root@storage:~# lvdisplay
+  --- Logical volume ---
+  LV Path                /dev/ubuntu-vg/root
+  LV Name                root
+  VG Name                ubuntu-vg
+  LV UUID                NA7DgH-V0Sv-cH8E-wvej-aJmP-6EBO-joXO0C
+  LV Write Access        read/write
+  LV Creation host, time ubuntu, 2017-08-23 16:30:36 +0800
+  LV Status              available
+  # open                 1
+  LV Size                45.52 GiB
+  Current LE             11653
+  Segments               1
+  Allocation             inherit
+  Read ahead sectors     auto
+  - currently set to     256
+  Block device           252:0
+
+  --- Logical volume ---
+  LV Path                /dev/ubuntu-vg/swap_1
+  LV Name                swap_1
+  VG Name                ubuntu-vg
+  LV UUID                Vtixi8-qKcP-f1LH-bHqM-E73h-NN7z-eSD2zk
+  LV Write Access        read/write
+  LV Creation host, time ubuntu, 2017-08-23 16:30:36 +0800
+  LV Status              available
+  # open                 2
+  LV Size                4.00 GiB
+  Current LE             1024
+  Segments               1
+  Allocation             inherit
+  Read ahead sectors     auto
+  - currently set to     256
+  Block device           252:1
+
+  --- Logical volume ---
+  LV Path                /dev/cinder-volumes/volume-81ffed40-ed71-495d-bfa9-8fb8c72cf222
+  LV Name                volume-81ffed40-ed71-495d-bfa9-8fb8c72cf222
+  VG Name                cinder-volumes
+  LV UUID                6jbPGA-i3Eo-O4ng-8Mf3-IoeF-9WF7-g1DGEA
+  LV Write Access        read/write
+  LV Creation host, time storage, 2017-08-24 22:38:28 +0800
+  LV Status              available
+  # open                 0
+  LV Size                1.00 GiB
+  Current LE             256
+  Segments               1
+  Allocation             inherit
+  Read ahead sectors     auto
+  - currently set to     256
+  Block device           252:2
+
+
+```
+
+
+
+## Attach the volume to an instance
+
+1. Attach a volume to an instance:
+
+   ```
+   $ openstack server add volume INSTANCE_NAME VOLUME_NAME
+   ```
+
+   Replace `INSTANCE_NAME` with the name of the instance and `VOLUME_NAME` with the name of the volume you want to attach to it.
+
+   **Example**
+
+   Attach the `volume1` volume to the `provider-instance` instance:
+
+   ```
+   $ openstack server add volume provider-instance volume1
+   ```
+
+   ​
+
+   This command provides no output.
+
+2. List volumes:
+
+   ```
+   root@controller:~# openstack volume list
+   +--------------------------------------+--------------+--------+------+--------------------------------------------+
+   | ID                                   | Display Name | Status | Size | Attached to                                |
+   +--------------------------------------+--------------+--------+------+--------------------------------------------+
+   | 81ffed40-ed71-495d-bfa9-8fb8c72cf222 | volume1      | in-use |    1 | Attached to provider-instance on /dev/vdb  |
+   +--------------------------------------+--------------+--------+------+--------------------------------------------+
+
+   root@storage:~# lvdisplay
+     --- Logical volume ---
+     LV Path                /dev/ubuntu-vg/root
+     LV Name                root
+     VG Name                ubuntu-vg
+     LV UUID                NA7DgH-V0Sv-cH8E-wvej-aJmP-6EBO-joXO0C
+     LV Write Access        read/write
+     LV Creation host, time ubuntu, 2017-08-23 16:30:36 +0800
+     LV Status              available
+     # open                 1
+     LV Size                45.52 GiB
+     Current LE             11653
+     Segments               1
+     Allocation             inherit
+     Read ahead sectors     auto
+     - currently set to     256
+     Block device           252:0
+
+     --- Logical volume ---
+     LV Path                /dev/ubuntu-vg/swap_1
+     LV Name                swap_1
+     VG Name                ubuntu-vg
+     LV UUID                Vtixi8-qKcP-f1LH-bHqM-E73h-NN7z-eSD2zk
+     LV Write Access        read/write
+     LV Creation host, time ubuntu, 2017-08-23 16:30:36 +0800
+     LV Status              available
+     # open                 2
+     LV Size                4.00 GiB
+     Current LE             1024
+     Segments               1
+     Allocation             inherit
+     Read ahead sectors     auto
+     - currently set to     256
+     Block device           252:1
+
+     --- Logical volume ---
+     LV Path                /dev/cinder-volumes/volume-81ffed40-ed71-495d-bfa9-8fb8c72cf222
+     LV Name                volume-81ffed40-ed71-495d-bfa9-8fb8c72cf222
+     VG Name                cinder-volumes
+     LV UUID                6jbPGA-i3Eo-O4ng-8Mf3-IoeF-9WF7-g1DGEA
+     LV Write Access        read/write
+     LV Creation host, time storage, 2017-08-24 22:38:28 +0800
+     LV Status              available
+     # open                 1
+     LV Size                1.00 GiB
+     Current LE             256
+     Segments               1
+     Allocation             inherit
+     Read ahead sectors     auto
+     - currently set to     256
+     Block device           252:2
+   ```
+
+3. Access your instance using SSH or `virsh console` and use the `fdisk` command to verify presence of the volume as the `/dev/vdb` block storage device:
+
+   ```
+   $ sudo fdisk -l
+
+   Disk /dev/vda: 1073 MB, 1073741824 bytes
+   255 heads, 63 sectors/track, 130 cylinders, total 2097152 sectors
+   Units = sectors of 1 * 512 = 512 bytes
+   Sector size (logical/physical): 512 bytes / 512 bytes
+   I/O size (minimum/optimal): 512 bytes / 512 bytes
+   Disk identifier: 0x00000000
+
+      Device Boot      Start         End      Blocks   Id  System
+   /dev/vda1   *       16065     2088449     1036192+  83  Linux
+
+   Disk /dev/vdb: 1073 MB, 1073741824 bytes
+   16 heads, 63 sectors/track, 2080 cylinders, total 2097152 sectors
+   Units = sectors of 1 * 512 = 512 bytes
+   Sector size (logical/physical): 512 bytes / 512 bytes
+   I/O size (minimum/optimal): 512 bytes / 512 bytes
+   Disk identifier: 0x00000000
+
+   Disk /dev/vdb doesn't contain a valid partition table
+   ```
+
+4. Check from storage node on iSCSI target point of view, it's found 
+
+   - Initiator: `iqn.1993-08.org.debian:01:e7b693dedcab alias: compute`
+   - LUN 1: `Backing store path: /dev/cinder-volumes/volume-81ffed40-ed71-495d-bfa9-8fb8c72cf222`
+
+   ```
+   root@storage:~# tgtadm --lld iscsi --op show --mode target
+   Target 1: iqn.2010-10.org.openstack:volume-81ffed40-ed71-495d-bfa9-8fb8c72cf222
+       System information:
+           Driver: iscsi
+           State: ready
+       I_T nexus information:
+           I_T nexus: 1
+               Initiator: iqn.1993-08.org.debian:01:e7b693dedcab alias: compute
+               Connection: 0
+                   IP Address: 192.168.199.20
+       LUN information:
+           LUN: 0
+               Type: controller
+               SCSI ID: IET     00010000
+               SCSI SN: beaf10
+               Size: 0 MB, Block size: 1
+               Online: Yes
+               Removable media: No
+               Prevent removal: No
+               Readonly: No
+               SWP: No
+               Thin-provisioning: No
+               Backing store type: null
+               Backing store path: None
+               Backing store flags:
+           LUN: 1
+               Type: disk
+               SCSI ID: IET     00010001
+               SCSI SN: beaf11
+               Size: 1074 MB, Block size: 512
+               Online: Yes
+               Removable media: No
+               Prevent removal: No
+               Readonly: No
+               SWP: No
+               Thin-provisioning: No
+               Backing store type: rdwr
+               Backing store path: /dev/cinder-volumes/volume-81ffed40-ed71-495d-bfa9-8fb8c72cf222
+               Backing store flags:
+       Account information:
+           7jTnhhxXsVM4BwqxG979
+       ACL information:
+           ALL
+   ```
+
+   ​
+
+5. Checking from compute via `virsh dumpxml <instance-id>`
+
+   It's shown the device from initiator point of view:
+
+   ```
+       <disk type='block' device='disk'>
+         <driver name='qemu' type='raw' cache='none' io='native'/>
+         <source dev='/dev/disk/by-path/ip-192.168.199.30:3260-iscsi-iqn.2010-10.org.openstack:volume-81ffed40-ed71-495d-bfa9-8fb8c72cf222-lun-1'/>
+         <backingStore/>
+         <target dev='vdb' bus='virtio'/>
+         <serial>81ffed40-ed71-495d-bfa9-8fb8c72cf222</serial>
+         <alias name='virtio-disk1'/>
+         <address type='pci' domain='0x0000' bus='0x00' slot='0x05' function='0x0'/>
+       </disk>
+
+   ```
+
+   ​
