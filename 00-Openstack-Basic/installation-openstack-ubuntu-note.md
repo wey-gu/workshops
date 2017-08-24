@@ -1,8 +1,8 @@
-
-
 # Installation Guide
 
-> ref https://docs.openstack.org/install-guide
+Latest version: [installation-openstack-ubuntu-note.md](https://github.com/littlewey/workshops/blob/master/00-Openstack-Basic/installation-openstack-ubuntu-note.md) hosted on *Github.com/littlewey*
+
+> ref: https://docs.openstack.org/install-guide
 
 Ubuntu was chosen as host OS.
 
