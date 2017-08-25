@@ -190,7 +190,7 @@ down ip link set dev $IFACE down
 
   ​
 
-## Controller actions
+## Controller node actions
 
 ### management network eth0 (enp0s3)
 
@@ -299,7 +299,7 @@ Restart the Memcached service:
 # service memcached restart
 ```
 
-## Compute actions
+## Compute node actions
 
 ### management network eth0 (enp0s3)
 
@@ -3307,7 +3307,7 @@ netmask 255.255.255.0
 
 ### Create cinder machine: storage
 
-## Storage actions & cinder on storage node
+## Storage node actions  
 
 >  Clone it from base VM and add a virtual disk for storage vm
 
@@ -3391,6 +3391,8 @@ I/O size (minimum/optimal): 512 bytes / 512 bytes
 ```
 
 
+
+## Cinder on storage node
 
 ### Install and configure a storage node
 
@@ -3708,7 +3710,7 @@ root@storage:~# lvdisplay
 
 
 
-## Attach the volume to an instance
+### Attach the volume to an instance
 
 1. Attach a volume to an instance:
 
@@ -3889,3 +3891,1173 @@ root@storage:~# lvdisplay
    ```
 
    ​
+
+## Heat
+
+### Install and configure 
+
+This section describes how to install and configure the Orchestration service for Ubuntu 14.04 (LTS).
+
+While our Ubuntu 16.04.3 LTS will be ok as well. 
+
+### Prerequisites
+
+Before you install and configure Orchestration, you must create a database, service credentials, and API endpoints. Orchestration also requires additional information in the Identity service.
+
+1. To create the database, complete these steps:
+
+   - Use the database access client to connect to the database server as the `root` user:
+
+     ```
+     $ mysql
+     ```
+
+   - Create the `heat` database:
+
+     ```
+     CREATE DATABASE heat;
+     ```
+
+   - Grant proper access to the `heat` database:
+
+     ```
+     GRANT ALL PRIVILEGES ON heat.* TO 'heat'@'localhost' \
+       IDENTIFIED BY 'HEAT_DBPASS';
+     GRANT ALL PRIVILEGES ON heat.* TO 'heat'@'%' \
+       IDENTIFIED BY 'HEAT_DBPASS';
+     ```
+
+     Replace `HEAT_DBPASS` with a suitable password.
+
+   - Exit the database access client.
+
+2. Source the `admin` credentials to gain access to admin-only CLI commands:
+
+   ```
+   $ . admin-openrc
+
+   ```
+
+3. To create the service credentials, complete these steps:
+
+   - Create the `heat` user:
+
+     ```
+     $ openstack user create --domain default --password-prompt heat
+     User Password:
+     Repeat User Password:
+     +-----------+----------------------------------+
+     | Field     | Value                            |
+     +-----------+----------------------------------+
+     | domain_id | e0353a670a9e496da891347c589539e9 |
+     | enabled   | True                             |
+     | id        | ca2e175b851943349be29a328cc5e360 |
+     | name      | heat                             |
+     +-----------+----------------------------------+
+     ```
+
+   - Add the `admin` role to the `heat` user:
+
+     ```
+     $ openstack role add --project service --user heat admin
+     ```
+
+     This command provides no output.
+
+   - Create the `heat` and `heat-cfn` service entities:
+
+     ```
+     $ openstack service create --name heat \
+       --description "Orchestration" orchestration
+     +-------------+----------------------------------+
+     | Field       | Value                            |
+     +-------------+----------------------------------+
+     | description | Orchestration                    |
+     | enabled     | True                             |
+     | id          | 727841c6f5df4773baa4e8a5ae7d72eb |
+     | name        | heat                             |
+     | type        | orchestration                    |
+     +-------------+----------------------------------+
+
+     $ openstack service create --name heat-cfn \
+       --description "Orchestration"  cloudformation
+     +-------------+----------------------------------+
+     | Field       | Value                            |
+     +-------------+----------------------------------+
+     | description | Orchestration                    |
+     | enabled     | True                             |
+     | id          | c42cede91a4e47c3b10c8aedc8d890c6 |
+     | name        | heat-cfn                         |
+     | type        | cloudformation                   |
+     +-------------+----------------------------------+
+     ```
+
+4. Create the Orchestration service API endpoints:
+
+   ```
+   $ openstack endpoint create --region RegionOne \
+     orchestration public http://controller:8004/v1/%\(tenant_id\)s
+   +--------------+-----------------------------------------+
+   | Field        | Value                                   |
+   +--------------+-----------------------------------------+
+   | enabled      | True                                    |
+   | id           | 3f4dab34624e4be7b000265f25049609        |
+   | interface    | public                                  |
+   | region       | RegionOne                               |
+   | region_id    | RegionOne                               |
+   | service_id   | 727841c6f5df4773baa4e8a5ae7d72eb        |
+   | service_name | heat                                    |
+   | service_type | orchestration                           |
+   | url          | http://controller:8004/v1/%(tenant_id)s |
+   +--------------+-----------------------------------------+
+
+   $ openstack endpoint create --region RegionOne \
+     orchestration internal http://controller:8004/v1/%\(tenant_id\)s
+   +--------------+-----------------------------------------+
+   | Field        | Value                                   |
+   +--------------+-----------------------------------------+
+   | enabled      | True                                    |
+   | id           | 9489f78e958e45cc85570fec7e836d98        |
+   | interface    | internal                                |
+   | region       | RegionOne                               |
+   | region_id    | RegionOne                               |
+   | service_id   | 727841c6f5df4773baa4e8a5ae7d72eb        |
+   | service_name | heat                                    |
+   | service_type | orchestration                           |
+   | url          | http://controller:8004/v1/%(tenant_id)s |
+   +--------------+-----------------------------------------+
+
+   $ openstack endpoint create --region RegionOne \
+     orchestration admin http://controller:8004/v1/%\(tenant_id\)s
+   +--------------+-----------------------------------------+
+   | Field        | Value                                   |
+   +--------------+-----------------------------------------+
+   | enabled      | True                                    |
+   | id           | 76091559514b40c6b7b38dde790efe99        |
+   | interface    | admin                                   |
+   | region       | RegionOne                               |
+   | region_id    | RegionOne                               |
+   | service_id   | 727841c6f5df4773baa4e8a5ae7d72eb        |
+   | service_name | heat                                    |
+   | service_type | orchestration                           |
+   | url          | http://controller:8004/v1/%(tenant_id)s |
+   +--------------+-----------------------------------------+
+   ```
+
+   ```
+   $ openstack endpoint create --region RegionOne \
+     cloudformation public http://controller:8000/v1
+   +--------------+----------------------------------+
+   | Field        | Value                            |
+   +--------------+----------------------------------+
+   | enabled      | True                             |
+   | id           | b3ea082e019c4024842bf0a80555052c |
+   | interface    | public                           |
+   | region       | RegionOne                        |
+   | region_id    | RegionOne                        |
+   | service_id   | c42cede91a4e47c3b10c8aedc8d890c6 |
+   | service_name | heat-cfn                         |
+   | service_type | cloudformation                   |
+   | url          | http://controller:8000/v1        |
+   +--------------+----------------------------------+
+
+   $ openstack endpoint create --region RegionOne \
+     cloudformation internal http://controller:8000/v1
+   +--------------+----------------------------------+
+   | Field        | Value                            |
+   +--------------+----------------------------------+
+   | enabled      | True                             |
+   | id           | 169df4368cdc435b8b115a9cb084044e |
+   | interface    | internal                         |
+   | region       | RegionOne                        |
+   | region_id    | RegionOne                        |
+   | service_id   | c42cede91a4e47c3b10c8aedc8d890c6 |
+   | service_name | heat-cfn                         |
+   | service_type | cloudformation                   |
+   | url          | http://controller:8000/v1        |
+   +--------------+----------------------------------+
+
+   $ openstack endpoint create --region RegionOne \
+     cloudformation admin http://controller:8000/v1
+   +--------------+----------------------------------+
+   | Field        | Value                            |
+   +--------------+----------------------------------+
+   | enabled      | True                             |
+   | id           | 3d3edcd61eb343c1bbd629aa041ff88b |
+   | interface    | internal                         |
+   | region       | RegionOne                        |
+   | region_id    | RegionOne                        |
+   | service_id   | c42cede91a4e47c3b10c8aedc8d890c6 |
+   | service_name | heat-cfn                         |
+   | service_type | cloudformation                   |
+   | url          | http://controller:8000/v1        |
+   +--------------+----------------------------------+
+   ```
+
+5. Orchestration requires additional information in the Identity service to manage stacks. To add this information, complete these steps:
+
+   - Create the `heat` domain that contains projects and users for stacks:
+
+     ```
+     $ openstack domain create --description "Stack projects and users" heat
+     +-------------+----------------------------------+
+     | Field       | Value                            |
+     +-------------+----------------------------------+
+     | description | Stack projects and users         |
+     | enabled     | True                             |
+     | id          | 0f4d1bd326f2454dacc72157ba328a47 |
+     | name        | heat                             |
+     +-------------+----------------------------------+
+     ```
+
+   - Create the `heat_domain_admin` user to manage projects and users in the `heat` domain:
+
+     > here i gave password: heat_domain_admin
+
+     ```
+     $ openstack user create --domain heat --password-prompt heat_domain_admin
+     User Password:
+     Repeat User Password:
+     +-----------+----------------------------------+
+     | Field     | Value                            |
+     +-----------+----------------------------------+
+     | domain_id | 0f4d1bd326f2454dacc72157ba328a47 |
+     | enabled   | True                             |
+     | id        | b7bd1abfbcf64478b47a0f13cd4d970a |
+     | name      | heat_domain_admin                |
+     +-----------+----------------------------------+
+     ```
+
+   - Add the `admin` role to the `heat_domain_admin` user in the `heat` domain to enable administrative stack management privileges by the `heat_domain_admin` user:
+
+     ```
+     $ openstack role add --domain heat --user-domain heat --user heat_domain_admin admin
+     ```
+
+     This command provides no output.
+
+   - Create the `heat_stack_owner` role:
+
+     ```
+     $ openstack role create heat_stack_owner
+     +-----------+----------------------------------+
+     | Field     | Value                            |
+     +-----------+----------------------------------+
+     | domain_id | None                             |
+     | id        | 15e34f0c4fed4e68b3246275883c8630 |
+     | name      | heat_stack_owner                 |
+     +-----------+----------------------------------+
+     ```
+
+   - Add the `heat_stack_owner` role to the `demo` project and user to enable stack management by the `demo` user:
+
+     ```
+     $ openstack role add --project demo --user demo heat_stack_owner
+     ```
+
+     This command provides no output.
+
+     >  You must add the `heat_stack_owner` role to each user that manages stacks.
+
+   - Create the `heat_stack_user` role:
+
+     ```
+     $ openstack role create heat_stack_user
+     +-----------+----------------------------------+
+     | Field     | Value                            |
+     +-----------+----------------------------------+
+     | domain_id | None                             |
+     | id        | 88849d41a55d4d1d91e4f11bffd8fc5c |
+     | name      | heat_stack_user                  |
+     +-----------+----------------------------------+
+     ```
+
+     The Orchestration service automatically assigns the `heat_stack_user` role to users that it creates during stack deployment. By default, this role restricts API <Application Programming Interface (API)> operations. To avoid conflicts, do not add this role to users with the `heat_stack_owner` role.
+
+### Install and configure components
+
+Install the packages:
+
+```
+# apt-get install heat-api heat-api-cfn heat-engine
+```
+
+1. Edit the `/etc/heat/heat.conf` file and complete the following actions:
+
+   - In the `[database]` section, configure database access:
+
+     ```
+     [database]
+     ...
+     connection = mysql+pymysql://heat:HEAT_DBPASS@controller/heat
+     ```
+
+     Replace `HEAT_DBPASS` with the password you chose for the Orchestration database.
+
+   - In the `[DEFAULT]` section, configure `RabbitMQ` message queue access:
+
+     ```
+     [DEFAULT]
+     ...
+     transport_url = rabbit://openstack:RABBIT_PASS@controller
+     ```
+
+     Replace `RABBIT_PASS` with the password you chose for the `openstack` account in `RabbitMQ`.
+
+   - In the `[keystone_authtoken]`, `[trustee]` and `[clients_keystone]` sections, configure Identity service access:
+
+     ```
+     [keystone_authtoken]
+     ...
+     auth_uri = http://controller:5000
+     auth_url = http://controller:35357
+     memcached_servers = controller:11211
+     auth_type = password
+     project_domain_name = default
+     user_domain_name = default
+     project_name = service
+     username = heat
+     password = HEAT_PASS
+
+     [trustee]
+     ...
+     auth_type = password
+     auth_url = http://controller:35357
+     username = heat
+     password = heat
+     user_domain_name = default
+
+     [clients_keystone]
+     ...
+     auth_uri = http://controller:5000
+     ```
+
+     Replace `password` with the password you chose for the `heat` user in the Identity service.
+
+   - In the `[DEFAULT]` section, configure the metadata and wait condition URLs:
+
+     ```
+     [DEFAULT]
+     ...
+     heat_metadata_server_url = http://controller:8000
+     heat_waitcondition_server_url = http://controller:8000/v1/waitcondition
+     ```
+
+   - In the `[DEFAULT]` section, configure the stack domain and administrative credentials:
+
+     ```
+     [DEFAULT]
+     ...
+     stack_domain_admin = heat_domain_admin
+     stack_domain_admin_password = heat_domain_admin
+     stack_user_domain_name = heat
+     ```
+
+     Replace `heat_domain_admin` with the password you chose for the `heat_domain_admin` user in the Identity service.
+
+2. Populate the Orchestration database:
+
+   ```
+   # su -s /bin/sh -c "heat-manage db_sync" heat
+   ```
+
+   Ignore any deprecation messages in this output.
+
+### Finalize installation
+
+1. Restart the Orchestration services:
+
+   ```
+   # service heat-api restart
+   # service heat-api-cfn restart
+   # service heat-engine restart
+   ```
+
+### Verify operation
+
+Verify operation of the Orchestration service. 
+
+Perform these commands on the controller node.
+
+1. Source the `admin` tenant credentials:
+
+   ```
+   $ . admin-openrc
+   ```
+
+2. List service components to verify successful launch and registration of each process:
+
+   ```
+   $ openstack orchestration service list
+   +------------+-------------+--------------------------------------+------------+--------+----------------------------+--------+
+   | hostname   | binary      | engine_id                            | host       | topic  | updated_at                 | status |
+   +------------+-------------+--------------------------------------+------------+--------+----------------------------+--------+
+   | controller | heat-engine | 3e85d1ab-a543-41aa-aa97-378c381fb958 | controller | engine | 2015-10-13T14:16:06.000000 | up     |
+   | controller | heat-engine | 45dbdcf6-5660-4d5f-973a-c4fc819da678 | controller | engine | 2015-10-13T14:16:06.000000 | up     |
+   | controller | heat-engine | 51162b63-ecb8-4c6c-98c6-993af899c4f7 | controller | engine | 2015-10-13T14:16:06.000000 | up     |
+   | controller | heat-engine | 8d7edc6d-77a6-460d-bd2a-984d76954646 | controller | engine | 2015-10-13T14:16:06.000000 | up     |
+   +------------+-------------+--------------------------------------+------------+--------+----------------------------+--------+
+   ```
+
+   This output should indicate four `heat-engine` components (default to 4 or number of CPUs on the host, whichever is greater) on the controller node.
+
+## [ISSUE] list heat service failure
+
+### error occurred during `openstack orchestration service list` 
+
+the initial output is very nonsense as below:
+
+```
+# openstack orchestration service list
+ERROR: None
+```
+
+ give `--debug` to have detailed information
+
+```
+REQ: curl -g -i -X GET http://controller:8004/v1/78c9c849237649a3a8c4526167427589/services -H "User-Agent: python-heatclient" -H "Accept: application/json" -H "X-Auth-Token: {SHA1}d4b406278269babd78368ed572cbe50382938cb6"
+Starting new HTTP connection (1): controller
+http://controller:8004 "GET /v1/78c9c849237649a3a8c4526167427589/services HTTP/1.1" 503 170
+RESP: [503] Content-Length: 170 Content-Type: application/json; charset=UTF-8 X-Openstack-Request-Id: req-e38d405a-776d-44fa-bb31-e180d62c42e0 Date: Fri, 25 Aug 2017 06:05:45 GMT Connection: keep-alive
+RESP BODY: {"message": "The server is currently unavailable. Please try again at a later time.<br /><br />\n\n\n", "code": "503 Service Unavailable", "title": "Service Unavailable"}
+
+GET call to orchestration for http://controller:8004/v1/78c9c849237649a3a8c4526167427589/services used request id req-e38d405a-776d-44fa-bb31-e180d62c42e0
+ERROR: None
+Traceback (most recent call last):
+  File "/usr/lib/python2.7/dist-packages/cliff/app.py", line 400, in run_subcommand
+    result = cmd.run(parsed_args)
+  File "/usr/lib/python2.7/dist-packages/osc_lib/command/command.py", line 41, in run
+    return super(Command, self).run(parsed_args)
+  File "/usr/lib/python2.7/dist-packages/cliff/display.py", line 112, in run
+    column_names, data = self.take_action(parsed_args)
+  File "/usr/lib/python2.7/dist-packages/heatclient/osc/v1/service.py", line 37, in take_action
+
+  File "/usr/lib/python2.7/dist-packages/heatclient/v1/services.py", line 33, in list
+    return self._list(url, "services")
+  File "/usr/lib/python2.7/dist-packages/heatclient/common/base.py", line 114, in _list
+
+  File "/usr/lib/python2.7/dist-packages/keystoneauth1/adapter.py", line 217, in get
+    return self.request(url, 'GET', **kwargs)
+  File "/usr/lib/python2.7/dist-packages/heatclient/common/http.py", line 318, in request
+    raise exc.from_response(resp)
+HTTPServiceUnavailable: ERROR: None
+clean_up ListService: ERROR: None
+Traceback (most recent call last):
+  File "/usr/lib/python2.7/dist-packages/osc_lib/shell.py", line 135, in run
+    ret_val = super(OpenStackShell, self).run(argv)
+  File "/usr/lib/python2.7/dist-packages/cliff/app.py", line 279, in run
+    result = self.run_subcommand(remainder)
+  File "/usr/lib/python2.7/dist-packages/osc_lib/shell.py", line 180, in run_subcommand
+    ret_value = super(OpenStackShell, self).run_subcommand(argv)
+  File "/usr/lib/python2.7/dist-packages/cliff/app.py", line 400, in run_subcommand
+    result = cmd.run(parsed_args)
+  File "/usr/lib/python2.7/dist-packages/osc_lib/command/command.py", line 41, in run
+    return super(Command, self).run(parsed_args)
+  File "/usr/lib/python2.7/dist-packages/cliff/display.py", line 112, in run
+    column_names, data = self.take_action(parsed_args)
+  File "/usr/lib/python2.7/dist-packages/heatclient/osc/v1/service.py", line 37, in take_action
+    services = heat_client.services.list()
+  File "/usr/lib/python2.7/dist-packages/heatclient/v1/services.py", line 33, in list
+    return self._list(url, "services")
+  File "/usr/lib/python2.7/dist-packages/heatclient/common/base.py", line 114, in _list
+    body = self.client.get(url).json()
+  File "/usr/lib/python2.7/dist-packages/keystoneauth1/adapter.py", line 217, in get
+    return self.request(url, 'GET', **kwargs)
+  File "/usr/lib/python2.7/dist-packages/heatclient/common/http.py", line 318, in request
+    raise exc.from_response(resp)
+HTTPServiceUnavailable: ERROR: None
+
+END return value: 1
+```
+
+We could see it got `503` when performing api call in `8004` port
+
+```
+REQ: curl -g -i -X GET http://controller:8004/v1/78c9c849237649a3a8c4526167427589/services -H "User-Agent: python-heatclient" -H "Accept: application/json" -H "X-Auth-Token: {SHA1}d4b406278269babd78368ed572cbe50382938cb6"
+Starting new HTTP connection (1): controller
+http://controller:8004 "GET /v1/78c9c849237649a3a8c4526167427589/services HTTP/1.1" 503 170
+RESP: [503] Content-Length: 170 Content-Type: application/json; charset=UTF-8 X-Openstack-Request-Id: req-e38d405a-776d-44fa-bb31-e180d62c42e0 Date: Fri, 25 Aug 2017 06:05:45 GMT Connection: keep-alive
+RESP BODY: {"message": "The server is currently unavailable. Please try again at a later time.<br /><br />\n\n\n", "code": "503 Service Unavailable", "title": "Service Unavailable"}
+```
+
+it's checked to be heat wsgi service
+
+```
+# openstack endpoint list | grep 8004
+| 1d6153de2a7a4bfc8f5277b360d5b695 | RegionOne | heat         | orchestration  | True    | internal  | http://controller:8004/v1/%(tenant_id)s   |
+| 38dd2f686f5840e6ae9381b6df1076d8 | RegionOne | heat         | orchestration  | True    | admin     | http://controller:8004/v1/%(tenant_id)s   |
+| 88b0e0667eb149efa337e6e0428c98ad | RegionOne | heat         | orchestration  | True    | public    | http://controller:8004/v1/%(tenant_id)s   |
+```
+
+Then let's check `503` in `/var/log/heat/heat-api.log`
+
+```
+2017-08-25 14:24:48.962 2778 WARNING keystonemiddleware.auth_token [-] Identity response: {"error": {"message": "The request you have made requires authentication.", "code": 401, "title": "Unauthorized"}}
+```
+
+it's keystone `401` meaning the credential is with issues when requesting token from keystone, let us check keystone logs:
+
+```
+# grep "Authorization failed" /var/log/apache2/keyston*.log
+
+/var/log/apache2/keystone.log:2017-08-25 14:24:48.954127 2017-08-25 14:24:48.953 3388 WARNING keystone.common.wsgi [req-fc1e6351-ab7a-40e3-967d-4e7376ced9d9 - - - - -] Authorization failed. The request you have made requires authentication. from 10.20.0.10
+```
+
+### Solution
+
+Where the credential for heat keystone call was configured? `/etc/heat/heat.conf` , it turned out we set wrong password for keystone, the one we set was `heat` while HEAT_PASS was configured, changed it as below and restart services will solve the issue.
+
+```
+[keystone_authtoken]
+...
+password = heat
+
+[trustee]
+...
+password = heat
+```
+
+restart services to make it work
+
+```
+# service heat-api restart
+# service heat-api-cfn restart
+# service heat-engine restart
+```
+
+and verify it:
+
+```
+root@controller:/var/log# openstack orchestration service list --max-width 85 
++------------+------------+------------+------------+--------+-------------+--------+
+| Hostname   | Binary     | Engine ID  | Host       | Topic  | Updated At  | Status |
++------------+------------+------------+------------+--------+-------------+--------+
+| controller | heat-      | 07ff1da7   | controller | engine | 2017-08-25T | up     |
+|            | engine     | -a77b-4d52 |            |        | 06:49:36.00 |        |
+|            |            | -95e6-cb53 |            |        | 0000        |        |
+|            |            | 89a106dc   |            |        |             |        |
+|            | engine     | de8-45eb-9 |            |        | 06:24:52.00 |        |
+|            |            | 839-4d038d |            |        | 0000        |        |
+|            |            | a4a330     |            |        |             |        |
+| controller | heat-      | 279303d6-2 | controller | engine | 2017-08-25T | up     |
+|            | engine     | d06-4e55-b |            |        | 06:49:36.00 |        |
+|            |            | 931-2c8ad0 |            |        | 0000        |        |
+|            |            | eadca7     |            |        |             |        |
+| controller | heat-      | 2cd3a832-d | controller | engine | 2017-08-25T | up     |
+|            | engine     | c21-4cfa-  |            |        | 06:49:36.00 |        |
+|            |            | 8a4b-bddd8 |            |        | 0000        |        |
+|            |            | dadba12    |            |        |             |        |
+| controller | heat-      | e1b05787   | controller | engine | 2017-08-25T | up     |
+|            | engine     | -9eda-46c3 |            |        | 06:49:36.00 |        |
+|            |            | -acca-b1f9 |            |        | 0000        |        |
+|            |            | bcf7b653   |            |        |             |        |
+|            | engine     | 1fa-4844-9 |            |        | 06:24:52.00 |        |
+|            |            | f68-688486 |            |        | 0000        |        |
+|            |            | f4ccfb     |            |        |             |        |
+|            | engine     | 023-4d10   |            |        | 06:24:52.00 |        |
+|            |            | -89ea-30af |            |        | 0000        |        |
+|            |            | f5430d25   |            |        |             |        |
+|            | engine     | b86-41af-  |            |        | 06:24:52.00 |        |
+|            |            | 895a-0c43a |            |        | 0000        |        |
+|            |            | f016950    |            |        |             |        |
++------------+------------+------------+------------+--------+-------------+--------+
+```
+
+
+
+## Start Orchestration! let's start from a single instance HOT 
+
+> ref: https://docs.openstack.org/heat/latest/install/launch-instance.html
+
+
+
+In environments that include the Orchestration service, you can create a stack that launches an instance.
+
+### Create a template
+
+The Orchestration service uses templates to describe stacks. To learn about the template language, see [the Template Guide](http://docs.openstack.org/developer/heat/template_guide/index.html) in the [Heat developer documentation](http://docs.openstack.org/developer/heat/index.html).
+
+- Create the `HOT-demo.yml` file with the following content:
+
+  ```
+  heat_template_version: 2015-10-15
+  description: Launch a basic instance with CirrOS image using the
+               ``m1.nano`` flavor,  and one network.
+
+  parameters:
+    NetID:
+      type: string
+      description: Network ID to use for the instance.
+
+  resources:
+    server:
+      type: OS::Nova::Server
+      properties:
+        image: cirros
+        flavor: m1.nano
+        networks:
+        - network: { get_param: NetID }
+
+  outputs:
+    instance_name:
+      description: Name of the instance.
+      value: { get_attr: [ server, name ] }
+    instance_ip:
+      description: IP address of the instance.
+      value: { get_attr: [ server, first_address ] }
+  ```
+
+### Create a stack
+
+Create a stack using the `demo-template.yml` template.
+
+1. Source the `demo` credentials to perform the following steps as a non-administrative project:
+
+   ```
+   $ . demo-openrc
+   ```
+
+2. Determine available networks.
+
+   ```
+   root@controller:~# openstack network list
+   +--------------------------------------+----------+--------------------------------------+
+   | ID                                   | Name     | Subnets                              |
+   +--------------------------------------+----------+--------------------------------------+
+   | 2a33434f-ba29-4645-9b5d-24f1509066f1 | provider | 9b118521-59b5-40ee-a439-9d59c3b392ea |
+   +--------------------------------------+----------+--------------------------------------+
+   ```
+
+   This output may differ from your environment.
+
+3. Set the `NET_ID` environment variable to reflect the ID of a network. For example, using the provider network:
+
+   ```
+   $ export NET_ID=$(openstack network list | awk '/ provider / { print $2 }')
+   ```
+
+4. Create a stack of one CirrOS instance on the provider network:
+
+   ```
+   $ openstack stack create -t HOT-demo.yml --parameter "NetID=$NET_ID" stack
+   +--------------------------------------+------------+--------------------+---------------------+--------------+
+   | ID                                   | Stack Name | Stack Status       | Creation Time       | Updated Time |
+   +--------------------------------------+------------+--------------------+---------------------+--------------+
+   | dbf46d1b-0b97-4d45-a0b3-9662a1eb6cf3 | stack      | CREATE_IN_PROGRESS | 2015-10-13T15:27:20 | None         |
+   +--------------------------------------+------------+--------------------+---------------------+--------------+
+   ```
+
+5. After a short time, verify successful creation of the stack:
+
+   ```
+   $ openstack stack list
+   +--------------------------------------+------------+-----------------+---------------------+--------------+
+   | ID                                   | Stack Name | Stack Status    | Creation Time       | Updated Time |
+   +--------------------------------------+------------+-----------------+---------------------+--------------+
+   | dbf46d1b-0b97-4d45-a0b3-9662a1eb6cf3 | stack      | CREATE_COMPLETE | 2015-10-13T15:27:20 | None         |
+   +--------------------------------------+------------+-----------------+---------------------+--------------+
+   ```
+
+6. Show the name and IP address of the instance and compare with the output of the OpenStack client:
+
+   ```
+   root@controller:~# openstack stack output show --all stack
+   +---------------+-------------------------------------------------+
+   | Field         | Value                                           |
+   +---------------+-------------------------------------------------+
+   | instance_name | {                                               |
+   |               |   "output_value": "stack-server-bigm7yoguexa",  |
+   |               |   "output_key": "instance_name",                |
+   |               |   "description": "Name of the instance."        |
+   |               | }                                               |
+   | instance_ip   | {                                               |
+   |               |   "output_value": "146.11.41.233",              |
+   |               |   "output_key": "instance_ip",                  |
+   |               |   "description": "IP address of the instance."  |
+   |               | }                                               |
+   +---------------+-------------------------------------------------+
+   ```
+
+   ```
+   root@controller:~# openstack server list
+   +--------------------------------------+---------------------------+---------+------------------------+------------+
+   | ID                                   | Name                      | Status  | Networks               | Image Name |
+   +--------------------------------------+---------------------------+---------+------------------------+------------+
+   | a81fc7b9-b5c0-4a0f-85d3-3ff739f8e5ce | stack-server-bigm7yoguexa | ACTIVE  | provider=146.11.41.233 | cirros     |
+   | e73c64ac-3af3-47fd-abfe-e138e40f0a40 | provider-instance         | SHUTOFF | provider=146.11.41.232 | cirros     |
+   +--------------------------------------+---------------------------+---------+------------------------+------------+
+   ```
+
+7. Delete the stack.
+
+   ```
+   $ openstack stack delete --yes stack
+   ```
+
+## How about Design a fake vAPG VNF and instantiate it?
+
+>  ref: https://docs.openstack.org/heat/latest/template_guide/index.html
+
+### HOT 
+
+```
+heat_template_version: 2015-10-15
+description: Fake vAPG with CirrOS image using the
+             ``m1.nano`` flavor,  and one network.
+
+parameters:
+  NetID:
+    type: string
+    description: Network ID to use for the instance.
+
+resources:
+  nodeA:
+    type: OS::Nova::Server
+    properties:
+      image: cirros
+      flavor: m1.nano
+      networks:
+      - network: { get_param: NetID }
+  nodeB:
+    type: OS::Nova::Server
+    properties:
+      image: cirros
+      flavor: m1.nano
+      networks:
+      - network: { get_param: NetID }
+  diskA:
+    type: OS::Cinder::Volume
+    properties:
+      size: 1
+  diskB:
+    type: OS::Cinder::Volume
+    properties:
+      size: 1
+  NodeAvolume_attachment:
+    type: OS::Cinder::VolumeAttachment
+    properties:
+      volume_id: { get_resource: diskA }
+      instance_uuid: { get_resource: nodeA }
+  NodeBvolume_attachment:
+    type: OS::Cinder::VolumeAttachment
+    properties:
+      volume_id: { get_resource: diskB }
+      instance_uuid: { get_resource: nodeB }
+outputs:
+  nodeA:
+    description: Name of the instance.
+    value: { get_attr: [ nodeA, name ] }
+  nodeA_ip:
+    description: IP address of the instance.
+    value: { get_attr: [ nodeA, first_address ] }
+  nodeB:
+    description: Name of the instance.
+    value: { get_attr: [ nodeB, name ] }
+  nodeB_ip:
+    description: IP address of the instance.
+    value: { get_attr: [ nodeB, first_address ] }
+```
+
+
+
+### Instantiation vAPG
+
+For simplicity we reused the existed network
+
+```
+# . demo-openrc
+# openstack stack create -t HOT-vAPG.yml --parameter "NetID=$NET_ID" vAPG
+
+// monitoring 
+
+# openstack stack output show --all vAPG
+```
+
+Print outs during/after instantiation
+
+```
+root@controller:~# openstack stack list
++--------------------------------------+------------+--------------------+----------------------+--------------+
+| ID                                   | Stack Name | Stack Status       | Creation Time        | Updated Time |
++--------------------------------------+------------+--------------------+----------------------+--------------+
+| 7c4f5cda-a943-4d64-be23-72402829c62f | vAPG       | CREATE_IN_PROGRESS | 2017-08-25T07:38:55Z | None         |
++--------------------------------------+------------+--------------------+----------------------+--------------+
+root@controller:~#
+root@controller:~#
+root@controller:~# openstack stack list
++--------------------------------------+------------+-----------------+----------------------+--------------+
+| ID                                   | Stack Name | Stack Status    | Creation Time        | Updated Time |
++--------------------------------------+------------+-----------------+----------------------+--------------+
+| 7c4f5cda-a943-4d64-be23-72402829c62f | vAPG       | CREATE_COMPLETE | 2017-08-25T07:38:55Z | None         |
++--------------------------------------+------------+-----------------+----------------------+--------------+
+root@controller:~# openstack stack output show --all vAPG
++----------+------------------------------------------------+
+| Field    | Value                                          |
++----------+------------------------------------------------+
+| nodeA    | {                                              |
+|          |   "output_value": "vAPG-nodeA-slvg7ccfel4j",   |
+|          |   "output_key": "nodeA",                       |
+|          |   "description": "Name of the instance."       |
+|          | }                                              |
+| nodeB_ip | {                                              |
+|          |   "output_value": "146.11.41.231",             |
+|          |   "output_key": "nodeB_ip",                    |
+|          |   "description": "IP address of the instance." |
+|          | }                                              |
+| nodeA_ip | {                                              |
+|          |   "output_value": "146.11.41.233",             |
+|          |   "output_key": "nodeA_ip",                    |
+|          |   "description": "IP address of the instance." |
+|          | }                                              |
+| nodeB    | {                                              |
+|          |   "output_value": "vAPG-nodeB-rjame5ftjcrf",   |
+|          |   "output_key": "nodeB",                       |
+|          |   "description": "Name of the instance."       |
+|          | }                                              |
++----------+------------------------------------------------+
+root@controller:~# openstack server list
++--------------------------------------+-------------------------+---------+------------------------+------------+
+| ID                                   | Name                    | Status  | Networks               | Image Name |
++--------------------------------------+-------------------------+---------+------------------------+------------+
+| 3eef32d9-f885-48ca-a038-365233ed300f | vAPG-nodeB-rjame5ftjcrf | ACTIVE  | provider=146.11.41.231 | cirros     |
+| 2a2709f2-9d77-42e1-be36-fd51c33b30de | vAPG-nodeA-slvg7ccfel4j | ACTIVE  | provider=146.11.41.233 | cirros     |
+| e73c64ac-3af3-47fd-abfe-e138e40f0a40 | provider-instance       | SHUTOFF | provider=146.11.41.232 | cirros     |
++--------------------------------------+-------------------------+---------+------------------------+------------+
+```
+
+Check resources afterwards
+
+```
+root@controller:~# openstack volume list
++--------------------------------+-------------------------+-----------+------+--------------------------------+
+| ID                             | Display Name            | Status    | Size | Attached to                    |
++--------------------------------+-------------------------+-----------+------+--------------------------------+
+| 9a93c5aa-56ed-                 | vAPG-diskA-ff253tzmwhuv | in-use    |    1 | Attached to vAPG-nodeA-        |
+| 42e0-b0a0-e0e617b533e1         |                         |           |      | slvg7ccfel4j on /dev/vdb       |
+| 988f5003-2a3f-                 | vAPG-diskB-xpzh5o7pw5po | in-use    |    1 | Attached to vAPG-nodeB-        |
+| 4eeb-b836-6be6f64b0b32         |                         |           |      | rjame5ftjcrf on /dev/vdb       |
++--------------------------------+-------------------------+-----------+------+--------------------------------+
+root@controller:~# openstack server list
++--------------------------------------+-------------------------+---------+------------------------+------------+
+| ID                                   | Name                    | Status  | Networks               | Image Name |
++--------------------------------------+-------------------------+---------+------------------------+------------+
+| 3eef32d9-f885-48ca-a038-365233ed300f | vAPG-nodeB-rjame5ftjcrf | ACTIVE  | provider=146.11.41.231 | cirros     |
+| 2a2709f2-9d77-42e1-be36-fd51c33b30de | vAPG-nodeA-slvg7ccfel4j | ACTIVE  | provider=146.11.41.233 | cirros     |
++--------------------------------------+-------------------------+---------+------------------------+------------+
+
+root@controller:~# openstack port list
++--------------------------------------+------+-------------------+----------------------------------------+--------+
+| ID                                   | Name | MAC Address       | Fixed IP Addresses                     | Status |
++--------------------------------------+------+-------------------+----------------------------------------+--------+
+| 0e54bc09-29d2-4774-bd71-413739b7bffe |      | fa:16:3e:0c:8a:66 | ip_address='146.11.41.233', subnet_id= | ACTIVE |
+|                                      |      |                   | '9b118521-59b5-40ee-a439-9d59c3b392ea' |        |
+| 2aa35c9c-2b50-40cd-8971-2056fb4cf04d |      | fa:16:3e:bb:c6:13 | ip_address='146.11.41.232', subnet_id= | ACTIVE |
+|                                      |      |                   | '9b118521-59b5-40ee-a439-9d59c3b392ea' |        |
++--------------------------------------+------+-------------------+----------------------------------------+--------+
+```
+
+
+
+## Horizon dashboard
+
+The Dashboard (horizon) is a web interface that enables cloud administrators and users to manage various OpenStack resources and services.
+
+This example deployment uses an Apache web server.
+
+> it's actually a Django based openstack client front-end
+
+### Install and configure
+
+Install the packages:
+
+```
+# apt install openstack-dashboard
+
+```
+
+1. Edit the `/etc/openstack-dashboard/local_settings.py` file and complete the following actions:
+
+   - Configure the dashboard to use OpenStack services on the `controller` node:
+
+     ```
+     OPENSTACK_HOST = "controller"
+
+     ```
+
+   - In the Dashboard configuration section, allow your hosts to access Dashboard:
+
+     ```
+     ALLOWED_HOSTS = ['*"]
+     ```
+
+     - Do not edit the `ALLOWED_HOSTS` parameter under the Ubuntu configuration section.
+     - `ALLOWED_HOSTS` can also be `['*']` to accept all hosts. This may be useful for development work, but is potentially insecure and should not be used in production. See the [Django documentation](https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts) for further information.
+
+   - Configure the `memcached` session storage service:
+
+     ```
+     SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+
+     CACHES = {
+         'default': {
+              'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',
+              'LOCATION': 'controller:11211',
+         }
+     }
+
+     ```
+
+     ​
+
+      
+
+     ​
+
+     Comment out any other session storage configuration.
+
+   - Enable the Identity API version 3:
+
+     ```
+     OPENSTACK_KEYSTONE_URL = "http://%s:5000/v3" % OPENSTACK_HOST
+
+     ```
+
+   - Enable support for domains:
+
+     ```
+     OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT = True
+
+     ```
+
+   - Configure API versions:
+
+     ```
+     OPENSTACK_API_VERSIONS = {
+         "identity": 3,
+         "image": 2,
+         "volume": 2,
+     }
+
+     ```
+
+   - Configure `Default` as the default domain for users that you create via the dashboard:
+
+     ```
+     OPENSTACK_KEYSTONE_DEFAULT_DOMAIN = "Default"
+
+     ```
+
+   - Configure `user` as the default role for users that you create via the dashboard:
+
+     ```
+     OPENSTACK_KEYSTONE_DEFAULT_ROLE = "user"
+
+     ```
+
+   - If you chose networking option 1, disable support for layer-3 networking services:
+
+     ```
+     OPENSTACK_NEUTRON_NETWORK = {
+         ...
+         'enable_router': False,
+         'enable_quotas': False,
+         'enable_ipv6': False,
+         'enable_distributed_router': False,
+         'enable_ha_router': False,
+         'enable_lb': False,
+         'enable_firewall': False,
+         'enable_vpn': False,
+         'enable_fip_topology_check': False,
+     }
+
+     ```
+
+   - Optionally, configure the time zone:
+
+     ```
+     TIME_ZONE = "CN"
+     ```
+
+     Replace `TIME_ZONE` with an appropriate time zone identifier. For more information, see the [list of time zones](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones).
+
+### Finalize installation
+
+- Reload the web server configuration:
+
+  ```
+  # service apache2 reloadetc
+  ```
+
+### Verify operation
+
+Verify operation of the dashboard.
+
+Access the dashboard using a web browser at `http://controller/horizon`.
+
+Authenticate using `admin` or `demo` user and `default` domain credentials.
+
+> Monitoring the how process by `tail -f /var/log/apache2/*.log`
+
+
+
+## [ISSUE] Horizon `500` internal error
+
+### Fault reproduce in cli
+
+```
+# curl http://10.20.0.10/horizon
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<html><head>
+<title>500 Internal Server Error</title>
+</head><body>
+<h1>Internal Server Error</h1>
+<p>The server encountered an internal error or
+misconfiguration and was unable to complete
+your request.</p>
+<p>Please contact the server administrator at
+ webmaster@localhost to inform them of the time this error occurred,
+ and the actions you performed just before this error.</p>
+<p>More information about this error may be available
+in the server error log.</p>
+<hr>
+<address>Apache/2.4.18 (Ubuntu) Server at 10.20.0.10 Port 80</address>
+</body></html>
+```
+
+It's apache2 based web service, error could be fond in `/var/log/apache2/error.log`
+
+
+
+```
+[Fri Aug 25 16:22:13.681394 2017] [wsgi:error] [pid 9401:tid 140055623386880] [remote 10.20.0.10:18248] mod_wsgi (pid=9401): Target WSGI script '/usr/share/openstack-dashboard/openstack_dashboard/wsgi/django.wsgi' cannot be loaded as Python module.
+[Fri Aug 25 16:22:13.681453 2017] [wsgi:error] [pid 9401:tid 140055623386880] [remote 10.20.0.10:18248] mod_wsgi (pid=9401): Exception occurred processing WSGI script '/usr/share/openstack-dashboard/openstack_dashboard/wsgi/django.wsgi'.
+[Fri Aug 25 16:22:13.681498 2017] [wsgi:error] [pid 9401:tid 140055623386880] [remote 10.20.0.10:18248] Traceback (most recent call last):
+[Fri Aug 25 16:22:13.681531 2017] [wsgi:error] [pid 9401:tid 140055623386880] [remote 10.20.0.10:18248]   File "/usr/share/openstack-dashboard/openstack_dashboard/wsgi/django.wsgi", line 16, in <module>[Fri Aug 25 16:22:13.681621 2017] [wsgi:error] [pid 9401:tid 140055623386880] [remote 10.20.0.10:18248]     application = get_wsgi_application()
+[Fri Aug 25 16:22:13.681635 2017] [wsgi:error] [pid 9401:tid 140055623386880] [remote 10.20.0.10:18248]   File "/usr/lib/python2.7/dist-packages/django/core/wsgi.py", line 14, in get_wsgi_application
+[Fri Aug 25 16:22:13.681672 2017] [wsgi:error] [pid 9401:tid 140055623386880] [remote 10.20.0.10:18248]     django.setup()
+[Fri Aug 25 16:22:13.681682 2017] [wsgi:error] [pid 9401:tid 140055623386880] [remote 10.20.0.10:18248]   File "/usr/lib/python2.7/dist-packages/django/__init__.py", line 17, in setup
+[Fri Aug 25 16:22:13.681713 2017] [wsgi:error] [pid 9401:tid 140055623386880] [remote 10.20.0.10:18248]     configure_logging(settings.LOGGING_CONFIG, settings.LOGGING)
+[Fri Aug 25 16:22:13.681726 2017] [wsgi:error] [pid 9401:tid 140055623386880] [remote 10.20.0.10:18248]   File "/usr/lib/python2.7/dist-packages/django/conf/__init__.py", line 48, in __getattr__
+[Fri Aug 25 16:22:13.681806 2017] [wsgi:error] [pid 9401:tid 140055623386880] [remote 10.20.0.10:18248]     self._setup(name)
+[Fri Aug 25 16:22:13.681886 2017] [wsgi:error] [pid 9401:tid 140055623386880] [remote 10.20.0.10:18248]   File "/usr/lib/python2.7/dist-packages/django/conf/__init__.py", line 44, in _setup
+[Fri Aug 25 16:22:13.681909 2017] [wsgi:error] [pid 9401:tid 140055623386880] [remote 10.20.0.10:18248]     self._wrapped = Settings(settings_module)
+[Fri Aug 25 16:22:13.681916 2017] [wsgi:error] [pid 9401:tid 140055623386880] [remote 10.20.0.10:18248]   File "/usr/lib/python2.7/dist-packages/django/conf/__init__.py", line 92, in __init__
+[Fri Aug 25 16:22:13.681927 2017] [wsgi:error] [pid 9401:tid 140055623386880] [remote 10.20.0.10:18248]     mod = importlib.import_module(self.SETTINGS_MODULE)
+[Fri Aug 25 16:22:13.681934 2017] [wsgi:error] [pid 9401:tid 140055623386880] [remote 10.20.0.10:18248]   File "/usr/lib/python2.7/importlib/__init__.py", line 37, in import_module
+[Fri Aug 25 16:22:13.681974 2017] [wsgi:error] [pid 9401:tid 140055623386880] [remote 10.20.0.10:18248]     __import__(name)
+[Fri Aug 25 16:22:13.681984 2017] [wsgi:error] [pid 9401:tid 140055623386880] [remote 10.20.0.10:18248]   File "/usr/share/openstack-dashboard/openstack_dashboard/settings.py", line 335, in <module>
+[Fri Aug 25 16:22:13.682112 2017] [wsgi:error] [pid 9401:tid 140055623386880] [remote 10.20.0.10:18248]     from local.local_settings import *  # noqa
+[Fri Aug 25 16:22:13.682123 2017] [wsgi:error] [pid 9401:tid 140055623386880] [remote 10.20.0.10:18248]   File "/usr/share/openstack-dashboard/openstack_dashboard/local/local_settings.py", line 131, in <module>
+[Fri Aug 25 16:22:13.682586 2017] [wsgi:error] [pid 9401:tid 140055623386880] [remote 10.20.0.10:18248]     SECRET_KEY = secret_key.generate_or_read_from_file('/var/lib/openstack-dashboard/secret_key') [Fri Aug 25 16:22:13.682611 2017] [wsgi:error] [pid 9401:tid 140055623386880] [remote 10.20.0.10:18248]   File "/usr/share/openstack-dashboard/horizon/utils/secret_key.py", line 70, in generate_or_read_from_file
+[Fri Aug 25 16:22:13.682688 2017] [wsgi:error] [pid 9401:tid 140055623386880] [remote 10.20.0.10:18248]     key = read_from_file(key_file)
+[Fri Aug 25 16:22:13.682699 2017] [wsgi:error] [pid 9401:tid 140055623386880] [remote 10.20.0.10:18248]   File "/usr/share/openstack-dashboard/horizon/utils/secret_key.py", line 52, in read_from_file
+[Fri Aug 25 16:22:13.682714 2017] [wsgi:error] [pid 9401:tid 140055623386880] [remote 10.20.0.10:18248]     with open(key_file, 'r') as f:
+[Fri Aug 25 16:22:13.682746 2017] [wsgi:error] [pid 9401:tid 140055623386880] [remote 10.20.0.10:18248] IOError: [Errno 13] Permission denied: '/var/lib/openstack-dashboard/secret_key'
+```
+
+beautify it as below
+
+```
+ mod_wsgi (pid=9401): Target WSGI script '/usr/share/openstack-dashboard/openstack_dashboard/wsgi/django.wsgi' cannot be loaded as Python module.
+ mod_wsgi (pid=9401): Exception occurred processing WSGI script '/usr/share/openstack-dashboard/openstack_dashboard/wsgi/django.wsgi'.
+ Traceback (most recent call last):
+   File "/usr/share/openstack-dashboard/openstack_dashboard/wsgi/django.wsgi", line 16, in <module>[Fri Aug 25 16:22:13.681621 2017] [wsgi:error] [pid 9401:tid 140055623386880] [remote      application = get_wsgi_application()
+   File "/usr/lib/python2.7/dist-packages/django/core/wsgi.py", line 14, in get_wsgi_application
+     django.setup()
+   File "/usr/lib/python2.7/dist-packages/django/__init__.py", line 17, in setup
+     configure_logging(settings.LOGGING_CONFIG, settings.LOGGING)
+   File "/usr/lib/python2.7/dist-packages/django/conf/__init__.py", line 48, in __getattr__
+     self._setup(name)
+   File "/usr/lib/python2.7/dist-packages/django/conf/__init__.py", line 44, in _setup
+     self._wrapped = Settings(settings_module)
+   File "/usr/lib/python2.7/dist-packages/django/conf/__init__.py", line 92, in __init__
+     mod = importlib.import_module(self.SETTINGS_MODULE)
+   File "/usr/lib/python2.7/importlib/__init__.py", line 37, in import_module
+     __import__(name)
+   File "/usr/share/openstack-dashboard/openstack_dashboard/settings.py", line 335, in <module>
+     from local.local_settings import *  # noqa
+   File "/usr/share/openstack-dashboard/openstack_dashboard/local/local_settings.py", line 131, in <module>
+     SECRET_KEY = secret_key.generate_or_read_from_file('/var/lib/openstack-dashboard/secret_key') [Fri Aug 25 16:22:13.682611 2017] [wsgi:error] [pid 9401:tid    File "/usr/share/openstack-dashboard/horizon/utils/secret_key.py", line 70, in generate_or_read_from_file
+     key = read_from_file(key_file)
+   File "/usr/share/openstack-dashboard/horizon/utils/secret_key.py", line 52, in read_from_file
+     with open(key_file, 'r') as f:
+ IOError: [Errno 13] Permission denied: '/var/lib/openstack-dashboard/secret_key'
+```
+
+The log shows that the file cannot be accessed by horizon. Check its ownership and permission
+
+```
+root@controller:~# ll /var/lib/openstack-dashboard/secret_key
+-rw------- 1 root root 64 Aug 25 15:49 /var/lib/openstack-dashboard/secret_key
+```
+
+try chown to `horizon:horizon`:
+
+```
+# chown -R horizon:horizon /var/lib/openstack-dashboard/secret_key
+# ll /var/lib/openstack-dashboard/secret_key
+-rw------- 1 horizon:horizon 64 Aug 25 15:49 /var/lib/openstack-dashboard/secret_key
+# service apache2 reload
+```
+
+retry with `curl`, still got `500`,and with same error on apache error log
+
+```
+# curl http://10.20.0.10/horizon
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<html><head>
+<title>500 Internal Server Error</title>
+</head><body>
+<h1>Internal Server Error</h1>
+<p>The server encountered an internal error or
+misconfiguration and was unable to complete
+your request.</p>
+<p>Please contact the server administrator at
+ webmaster@localhost to inform them of the time this error occurred,
+ and the actions you performed just before this error.</p>
+<p>More information about this error may be available
+in the server error log.</p>
+<hr>
+<address>Apache/2.4.18 (Ubuntu) Server at 10.20.0.10 Port 80</address>
+</body></html>
+```
+
+try change as `777` while it cannot pass horizon permission policy with error as below:
+
+```
+# chmod 777 /var/lib/openstack-dashboard/secret_key
+# service apache2 reload
+# curl http://10.20.0.10/horizon
+
+# less /var/log/apache2/error.log
+...
+[Fri Aug 25 16:20:38.336541 2017] [wsgi:error] [pid 9110:tid 140055698921216] [remote 10.20.0.10:18504]     SECRET_KEY = secret_key.generate_or_read_from_file('/var/lib/openstack-dashboard/secret_key') [Fri Aug 25 16:20:38.336553 2017] [wsgi:error] [pid 9110:tid 140055698921216] [remote 10.20.0.10:18504]   File "/usr/share/openstack-dashboard/horizon/utils/secret_key.py", line 70, in generate_or_read_from_file
+[Fri Aug 25 16:20:38.336595 2017] [wsgi:error] [pid 9110:tid 140055698921216] [remote 10.20.0.10:18504]     key = read_from_file(key_file)
+[Fri Aug 25 16:20:38.336603 2017] [wsgi:error] [pid 9110:tid 140055698921216] [remote 10.20.0.10:18504]   File "/usr/share/openstack-dashboard/horizon/utils/secret_key.py", line 51, in read_from_file
+[Fri Aug 25 16:20:38.336612 2017] [wsgi:error] [pid 9110:tid 140055698921216] [remote 10.20.0.10:18504]     os.path.abspath(key_file))
+[Fri Aug 25 16:20:38.336628 2017] [wsgi:error] [pid 9110:tid 140055698921216] [remote 10.20.0.10:18504] FilePermissionError: Insecure permissions on key file /var/lib/openstack-dashboard/secret_key, should be 0600.
+...
+```
+
+We should identify the process owner and change to it accordingly.
+
+By checking horizon wsgi process it's found the user is www-data (the one for apache2 ):
+
+```
+root@controller:~# ps -aux | grep horizon
+www-data 10299  0.0  0.2 251032  8292 ?        Sl   16:26   0:00 (wsgi:horizon)    -k start
+www-data 10300  0.0  0.2 251024  8292 ?        Sl   16:26   0:00 (wsgi:horizon)    -k start
+www-data 10301  0.3  4.1 550344 169144 ?       Sl   16:26   0:02 (wsgi:horizon)    -k start
+```
+
+### Solution
+
+Change owner to `www-data`
+
+```
+# chown www-data /var/lib/openstack-dashboard/secret_key
+# service apache2 reload
+```
+
+Retry with `curl http://10.20.0.10/horizon` no error came out :-).
+
