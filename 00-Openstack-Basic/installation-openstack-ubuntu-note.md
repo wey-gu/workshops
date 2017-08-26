@@ -10,16 +10,13 @@ Ubuntu was chosen as host OS.
 >
 > ​                                                                                                                     Wey Gu 
 
+
+
+## Contents 
+
+
+
 [TOC]
-
-## Security
-
-> ref: https://docs.openstack.org/install-guide/environment-security.html
-
-
-```
-$ openssl rand -hex 10
-```
 
 ## Host networking
 
@@ -39,8 +36,6 @@ The example architectures assume use of the following networks:
   This network requires a gateway to provide Internet access to instances in your OpenStack environment.
 
 ### My network solution
-
-
 
 ```
 Net0:
@@ -4809,7 +4804,6 @@ Install the packages:
 
      ​
 
-      
 
      ​
 
