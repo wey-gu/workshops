@@ -2804,7 +2804,6 @@ Sending discover...
 Sending discover...
 Usage: /sbin/cirros-dhcpc <up|down>
 No lease, failing
-
 ```
 
 in controller console (monitor log)
@@ -5054,4 +5053,52 @@ Change owner to `www-data`
 ```
 
 Retry with `curl http://10.20.0.10/horizon` no error came out :-).
+
+## Enable RabbitMQ web admin for studying
+
+>  ref: https://www.rabbitmq.com/management.html
+
+Enable the plugins for this feature:
+
+```
+root@controller:~# netstat -plunt | grep 15672
+
+root@controller:~# rabbitmq-plugins enable rabbitmq_management
+The following plugins have been enabled:
+  mochiweb
+  webmachine
+  rabbitmq_web_dispatch
+  amqp_client
+  rabbitmq_management_agent
+  rabbitmq_management
+  
+root@controller:~# netstat -plunt | grep 15672
+tcp        0      0 0.0.0.0:15672           0.0.0.0:*               LISTEN      1927/beam
+```
+
+Browse from web browser with URL: `http://controller:15672/`with:
+
+- user: openstack
+- password: RABBIT_PASS
+
+Got failure Login failed, check logs
+
+```
+# less /var/log/rabbitmq/rabbit@controller.log
+
+...
+=WARNING REPORT==== 26-Aug-2017::22:34:05 ===
+HTTP access denied: user 'openstack' - Not management user
+...
+```
+
+Add new user ad admin grants:
+
+```
+rabbitmqctl add_user admin admin
+rabbitmqctl set_user_tags admin administrator
+rabbitmqctl set_permissions -p / admin ".*" ".*" ".*"
+```
+
+> Accessed !
 
