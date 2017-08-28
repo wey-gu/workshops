@@ -22,3 +22,4 @@ auth = loader.load_from_options(auth_url= "http://controller:5000/v3",
 sess = session.Session(auth=auth)
 heat = client.Client('1', session=sess)
 heat.stacks.list()
+#heat.stacks.create(parameters="NetID=152a4a85-dc52-4c62-9bbd-742eb4f7b8fa",file=u"./HOT-vAPG.yml",name="testStack")

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <!--Import Google Icon Font-->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <!--Import materialize.css-->
+    <link type="text/css" rel="stylesheet" href="static/css/materialize.min.css"  media="screen,projection"/>
+    <!--Let browser know website is optimized for mobile-->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  </head>
+  <body>
+  <nav>
+    <div class="nav-wrapper">
+    <div class="row">
+      <div class="col s1"> </div>
+      <div class="col s1"><a href="#" class="brand-logo">mini ECM</a></div>
+
+    </div>
+    </div>
+  </nav>
+  <div class="container">
+    <div class="row">
+      <div>
+        <h2 class="center-align">vApp instantiation</h2>
+      </div>
+    </div>
+    <form action='/instantiation' method="post">
+      <div class="row">
+        <div class="col s12">
+          <div class="row">
+            <div class="input-field col s6">
+              <i class="material-icons prefix">cloud</i>
+              <input id="stack_name" type="text" class="validate" name="stack_name_form">
+              <label for="stack_name">Stack Name</label>
+            </div>
+            <div class="input-field col s6">
+              <i class="material-icons prefix">share</i>
+              <input id="net_id" type="text" class="validate" name="net_id_form">
+              <label for="net_id">Net ID</label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="input-field col s12">
+          <i class="material-icons prefix">attach_file</i>
+          <input id="template_url" type="text" class="validate" name="template_url_form">
+          <label for="template_url">Template URL</label>
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn waves-effect waves-light right" type="submit" name="action">Submit
+          <i class="material-icons right">send</i>
+        </button>
+      </div>
+    </form>
+  </div>
+    <!--Import jQuery before materialize.js-->
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+    <script type="text/javascript" src="static/js/materialize.min.js"></script>
+  </body>
+</html>

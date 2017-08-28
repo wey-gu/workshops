@@ -1,0 +1,56 @@
+heat_template_version: 2015-10-15
+description: Fake vAPG with CirrOS image using the
+             ``m1.nano`` flavor,  and one network.
+
+parameters:
+  NetID:
+    type: string
+    description: Network ID to use for the instance.
+
+resources:
+  nodeA:
+    type: OS::Nova::Server
+    properties:
+      image: cirros
+      flavor: m1.nano
+      networks:
+      - network: { get_param: NetID }
+  nodeB:
+    type: OS::Nova::Server
+    properties:
+      image: cirros
+      flavor: m1.nano
+      networks:
+      - network: { get_param: NetID }
+  diskA:
+    type: OS::Cinder::Volume
+    properties:
+      size: 1
+  diskB:
+    type: OS::Cinder::Volume
+    properties:
+      size: 1
+  NodeAvolume_attachment:
+    type: OS::Cinder::VolumeAttachment
+    properties:
+      volume_id: { get_resource: diskA }
+      instance_uuid: { get_resource: nodeA }
+  NodeBvolume_attachment:
+    type: OS::Cinder::VolumeAttachment
+    properties:
+      volume_id: { get_resource: diskB }
+      instance_uuid: { get_resource: nodeB }
+
+outputs:
+  nodeA:
+    description: Name of the instance.
+    value: { get_attr: [ nodeA, name ] }
+  nodeA_ip:
+    description: IP address of the instance.
+    value: { get_attr: [ nodeB, first_address ] }
+  nodeB:
+    description: Name of the instance.
+    value: { get_attr: [ nodeA, name ] }
+  nodeB_ip:
+    description: IP address of the instance.
+    value: { get_attr: [ nodeB, first_address ] }

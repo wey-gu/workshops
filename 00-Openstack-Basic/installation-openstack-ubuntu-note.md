@@ -12,6 +12,8 @@ Ubuntu was chosen as host OS.
 
 
 
+> Sorry I could not use openstack-config but need configure conf file manually :-p, yes, I am not sorry, just look into conf files~~~.
+
 ## Contents 
 
 
@@ -56,11 +58,11 @@ Net2：
 	Network name: VirtualBox  host-only Ethernet Adapter#3
 	Purpose: Storage network
 	DHCP: disable
-	IP block: 192.168.199.0/24
+	IP block: 192.168.99.0/24
 	Linux device: eth2
 
 Net3：
-	Network name: VirtualBox  Bridged // for accessing network or remote access purpose
+	Network name: VirtualBox  Bridged or NAT // for accessing network or remote access purpose
 	Purpose: Internet
 	DHCP: enable
 	IP block: <depend on your network>
@@ -1532,7 +1534,7 @@ This section describes how to install and configure the Compute service on a com
 
      Replace `MANAGEMENT_INTERFACE_IP_ADDRESS` with the IP address of the management network interface on your compute node, typically 10.0.0.31 for the first node in the [example architecture](https://docs.openstack.org/newton/install-guide-ubuntu/overview.html#overview-example-architectures).
 
-     here our compute is 10.20.0.20
+     >  here our compute is 10.20.0.20
 
    - In the `[DEFAULT]` section, enable support for the Networking service:
 
@@ -2097,8 +2099,6 @@ The [metadata agent](https://docs.openstack.org/newton/install-guide-ubuntu/comm
 
 3. Restart the Networking services.
 
-   For both networking options:
-
    ```
    # service neutron-server restart
    # service neutron-linuxbridge-agent restart
@@ -2106,11 +2106,6 @@ The [metadata agent](https://docs.openstack.org/newton/install-guide-ubuntu/comm
    # service neutron-metadata-agent restart
    ```
 
-   For networking option 2, also restart the layer-3 service:
-
-   ```
-   # service neutron-l3-agent restart
-   ```
 
 ### Verify operation
 
@@ -2327,38 +2322,37 @@ Perform these commands on the controller node.
 
 3. List agents to verify successful launch of the neutron agents:
 
-```
-$ openstack network agent list
+   ```
+   $ openstack network agent list
 
-root@controller:~# openstack network agent list --max-width 70
-+----------+------------+----------+-------------------+-------+-------+------------+
-| ID       | Agent Type | Host     | Availability Zone | Alive | State | Binary     |
-+----------+------------+----------+-------------------+-------+-------+------------+
-| 143d7731 | Linux      | compute  | None              | True  | UP    | neutron-li |
-| -9227-4b | bridge     |          |                   |       |       | nuxbridge- |
-| af-9052- | agent      |          |                   |       |       | agent      |
-| 292d7aea |            |          |                   |       |       |            |
-| 6992     |            |          |                   |       |       |            |
-| 1d661145 | Linux      | controll | None              | True  | UP    | neutron-li |
-| -0941    | bridge     | er       |                   |       |       | nuxbridge- |
-| -411d-9b | agent      |          |                   |       |       | agent      |
-| 18-b3371 |            |          |                   |       |       |            |
-| fe57c4b  |            |          |                   |       |       |            |
-| 7502e1a3 | DHCP agent | controll | nova              | True  | UP    | neutron-   |
-| -998d-   |            | er       |                   |       |       | dhcp-agent |
-| 4aca-91e |            |          |                   |       |       |            |
-| 4-ca17e1 |            |          |                   |       |       |            |
-| b10c82   |            |          |                   |       |       |            |
-| 7c47ac70 | Metadata   | controll | None              | True  | UP    | neutron-   |
-| -5de2-44 | agent      | er       |                   |       |       | metadata-  |
-| 42-8fc1- |            |          |                   |       |       | agent      |
-| 91fe97ae |            |          |                   |       |       |            |
-| 120f     |            |          |                   |       |       |            |
-+----------+------------+----------+-------------------+-------+-------+------------+
+   root@controller:~# openstack network agent list --max-width 70
+   +----------+------------+----------+-------------------+-------+-------+------------+
+   | ID       | Agent Type | Host     | Availability Zone | Alive | State | Binary     |
+   +----------+------------+----------+-------------------+-------+-------+------------+
+   | 143d7731 | Linux      | compute  | None              | True  | UP    | neutron-li |
+   | -9227-4b | bridge     |          |                   |       |       | nuxbridge- |
+   | af-9052- | agent      |          |                   |       |       | agent      |
+   | 292d7aea |            |          |                   |       |       |            |
+   | 6992     |            |          |                   |       |       |            |
+   | 1d661145 | Linux      | controll | None              | True  | UP    | neutron-li |
+   | -0941    | bridge     | er       |                   |       |       | nuxbridge- |
+   | -411d-9b | agent      |          |                   |       |       | agent      |
+   | 18-b3371 |            |          |                   |       |       |            |
+   | fe57c4b  |            |          |                   |       |       |            |
+   | 7502e1a3 | DHCP agent | controll | nova              | True  | UP    | neutron-   |
+   | -998d-   |            | er       |                   |       |       | dhcp-agent |
+   | 4aca-91e |            |          |                   |       |       |            |
+   | 4-ca17e1 |            |          |                   |       |       |            |
+   | b10c82   |            |          |                   |       |       |            |
+   | 7c47ac70 | Metadata   | controll | None              | True  | UP    | neutron-   |
+   | -5de2-44 | agent      | er       |                   |       |       | metadata-  |
+   | 42-8fc1- |            |          |                   |       |       | agent      |
+   | 91fe97ae |            |          |                   |       |       |            |
+   | 120f     |            |          |                   |       |       |            |
+   +----------+------------+----------+-------------------+-------+-------+------------+
+   ```
 
-```
-
-The output should indicate three agents on the controller node and one agent on each compute node.
+   ​The output should indicate three agents on the controller node and one agent on each compute node.
 
 ## Congratulations! Let's try booting an instance
 
@@ -2824,7 +2818,6 @@ Aug 24 03:13:19 controller dnsmasq-dhcp[18894]: DHCPDISCOVER(ns-a6e0220e-ec) fa:
 Aug 24 03:13:19 controller dnsmasq-dhcp[18894]: DHCPOFFER(ns-a6e0220e-ec) 146.11.41.232 fa:16:3e:bb:c6:13
 Aug 24 03:14:19 controller dnsmasq-dhcp[18894]: DHCPDISCOVER(ns-a6e0220e-ec) fa:16:3e:bb:c6:13
 Aug 24 03:14:19 controller dnsmasq-dhcp[18894]: DHCPOFFER(ns-a6e0220e-ec) 146.11.41.232 fa:16:3e:bb:c6:13
-
 ```
 
 By tcpdump from controllor bridge, it's found the DHCPOFFER was sent to VM:
@@ -2866,7 +2859,6 @@ tcpdump: listening on brq2a33434f-ba, link-type EN10MB (Ethernet), capture size 
             Domain-Name-Server Option 6, length 4: 147.128.5.12
             MTU Option 26, length 2: 1500
 04:04:52.504181 08:2e:5f:5d:63:00 > ff:ff:ff:ff:ff:ff, ethertype IPv4 (0x0800), length 358: (tos 0x0, ttl 120, id 5320, offset 0, flags [DF], proto UDP (17), length 344)
-
 ```
 
 While from compute , tcpdump the br-int bridge shows it's not received 
@@ -3290,9 +3282,8 @@ Edit `/etc/network/interfaces`
 # storage network eth2
 auto enp0s9
 iface enp0s9 inet static
-address 192.168.199.20
+address 192.168.99.20
 netmask 255.255.255.0
-
 ```
 
 ```
@@ -3322,7 +3313,7 @@ netmask 255.255.255.0
 # storage network eth2
 auto enp0s9
 iface enp0s9 inet static
-address 192.168.199.30
+address 192.168.99.30
 netmask 255.255.255.0
 ```
 
@@ -3699,7 +3690,6 @@ root@storage:~# lvdisplay
   - currently set to     256
   Block device           252:2
 
-
 ```
 
 
@@ -3881,7 +3871,6 @@ root@storage:~# lvdisplay
          <alias name='virtio-disk1'/>
          <address type='pci' domain='0x0000' bus='0x00' slot='0x05' function='0x0'/>
        </disk>
-
    ```
 
    ​
@@ -5102,3 +5091,517 @@ rabbitmqctl set_permissions -p / admin ".*" ".*" ".*"
 
 > Accessed !
 
+
+
+
+
+## Neutron reconfigure as Linux bridge with vlan
+
+>  ref: https://docs.openstack.org/kilo/networking-guide/deploy_scenario4b.html
+
+### Controller configuration
+
+1. Configure the kernel to disable reverse path filtering. Edit the `/etc/sysctl.conf` file:
+
+   ```
+   net.ipv4.conf.default.rp_filter=0
+   net.ipv4.conf.all.rp_filter=0
+
+   ```
+
+2. Load the new kernel configuration:
+
+   ```
+   $ sysctl -p
+   ```
+
+3. Configure the ML2 plug-in and Linux bridge agent. Edit the `/etc/neutron/plugins/ml2/ml2_conf.ini` file:
+
+   ```
+   [ml2]
+   type_drivers = flat,vlan
+   tenant_network_types =
+   mechanism_drivers = linuxbridge
+
+   [ml2_type_flat]
+   flat_networks = ecn,provider
+
+   [ml2_type_vlan]
+   network_vlan_ranges = provider:100:200
+   ```
+
+4. Edit the`/etc/neutron/plugins/ml2/ml2_conf.ini` file:
+
+   ```
+   [linux_bridge]
+   physical_interface_mappings = ecn:enp0s10,provider:enp0s8
+
+   [securitygroup]
+   firewall_driver = neutron.agent.linux.iptables_firewall.IptablesFirewallDriver
+   enable_security_group = True
+   enable_ipset = True
+   ```
+
+5. Restart the Networking services.
+
+   ```
+   # service neutron-server restart
+   # service neutron-linuxbridge-agent restart
+   # service neutron-dhcp-agent restart
+   # service neutron-metadata-agent restart
+   ```
+
+### Compute node configuration
+
+1. Configure the kernel to disable reverse path filtering. Edit the `/etc/sysctl.conf` file:
+
+   ```
+   net.ipv4.conf.default.rp_filter=0
+   net.ipv4.conf.all.rp_filter=0
+   ```
+
+2. Load the new kernel configuration:
+
+   ```
+   $ sysctl -p
+   ```
+
+3. Configure the Linux bridge agent. Edit the `/etc/neutron/plugins/ml2/ml2_conf.ini` file:
+
+   ```
+   [linux_bridge]
+   physical_interface_mappings = ecn:enp0s10,provider:enp0s8
+
+   [securitygroup]
+   firewall_driver = neutron.agent.linux.iptables_firewall.IptablesFirewallDriver
+   enable_security_group = True
+   enable_ipset = True
+   ```
+
+   ​
+
+### Verify operation
+
+1. Source the administrative project credentials.
+
+   ```
+   . admin-openrc
+   ```
+
+   ​
+
+2. Verify presence and operation of the agents:
+
+   ```
+   root@controller:~# neutron agent-list
+   neutron CLI is deprecated and will be removed in the future. Use openstack CLI instead.
+   +--------------------------------------+--------------------+------------+-------------------+-------+----------------+---------------------------+
+   | id                                   | agent_type         | host       | availability_zone | alive | admin_state_up | binary                    |
+   +--------------------------------------+--------------------+------------+-------------------+-------+----------------+---------------------------+
+   | 143d7731-9227-4baf-9052-292d7aea6992 | Linux bridge agent | compute    |                   | :-)   | True           | neutron-linuxbridge-agent |
+   | 1d661145-0941-411d-9b18-b3371fe57c4b | Linux bridge agent | controller |                   | :-)   | True           | neutron-linuxbridge-agent |
+   | 7502e1a3-998d-4aca-91e4-ca17e1b10c82 | DHCP agent         | controller | nova              | :-)   | True           | neutron-dhcp-agent        |
+   | 7c47ac70-5de2-4442-8fc1-91fe97ae120f | Metadata agent     | controller |                   | :-)   | True           | neutron-metadata-agent    |
+   +--------------------------------------+--------------------+------------+-------------------+-------+----------------+---------------------------+
+   ```
+
+
+   root@controller:~# openstack network agent list
+   +--------------------------------------+--------------------+------------+-------------------+-------+-------+---------------------------+
+   | ID                                   | Agent Type         | Host       | Availability Zone | Alive | State | Binary                    |
+   +--------------------------------------+--------------------+------------+-------------------+-------+-------+---------------------------+
+   | 143d7731-9227-4baf-9052-292d7aea6992 | Linux bridge agent | compute    | None              | True  | UP    | neutron-linuxbridge-agent |
+   | 1d661145-0941-411d-9b18-b3371fe57c4b | Linux bridge agent | controller | None              | True  | UP    | neutron-linuxbridge-agent |
+   | 7502e1a3-998d-4aca-91e4-ca17e1b10c82 | DHCP agent         | controller | nova              | True  | UP    | neutron-dhcp-agent        |
+   | 7c47ac70-5de2-4442-8fc1-91fe97ae120f | Metadata agent     | controller | None              | True  | UP    | neutron-metadata-agent    |
+   +--------------------------------------+--------------------+------------+-------------------+-------+-------+---------------------------+
+   ```
+
+### Create initial networks
+
+This example creates a VLAN provider network. Change the VLAN ID and IP address range to values suitable for your environment.
+
+1. Source the administrative project credentials.
+
+   ```
+   . demo-openrc
+   ```
+
+   ​
+
+2. Create a provider network:
+
+   ```
+   root@controller:~# openstack network create  --share --external   --provider-physical-network provider --provider-network-type vlan --provider-segment 101 provider-vlan-101
+   +---------------------------+--------------------------------------+
+   | Field                     | Value                                |
+   +---------------------------+--------------------------------------+
+   | admin_state_up            | UP                                   |
+   | availability_zone_hints   |                                      |
+   | availability_zones        |                                      |
+   | created_at                | 2017-08-28T03:25:26Z                 |
+   | description               |                                      |
+   | dns_domain                | None                                 |
+   | id                        | 152a4a85-dc52-4c62-9bbd-742eb4f7b8fa |
+   | ipv4_address_scope        | None                                 |
+   | ipv6_address_scope        | None                                 |
+   | is_default                | None                                 |
+   | mtu                       | 1500                                 |
+   | name                      | provider-vlan-101                    |
+   | port_security_enabled     | True                                 |
+   | project_id                | 78c9c849237649a3a8c4526167427589     |
+   | provider:network_type     | vlan                                 |
+   | provider:physical_network | provider                             |
+   | provider:segmentation_id  | 101                                  |
+   | qos_policy_id             | None                                 |
+   | revision_number           | 4                                    |
+   | router:external           | External                             |
+   | segments                  | None                                 |
+   | shared                    | True                                 |
+   | status                    | ACTIVE                               |
+   | subnets                   |                                      |
+   | updated_at                | 2017-08-28T03:25:26Z                 |
+   +---------------------------+--------------------------------------+
+
+   // or neutron cli
+
+   $ neutron net-create provider-101 --shared  --external\
+     --provider:physical_network provider --provider:network_type vlan \
+     --provider:segmentation_id 101
+   Created a new network:
+   +---------------------------+--------------------------------------+
+   | Field                     | Value                                |
+   +---------------------------+--------------------------------------+
+   | admin_state_up            | True                                 |
+   | id                        | 572a3fc9-ad1f-4e54-a63a-4bf5047c1a4a |
+   | name                      | provider-101                         |
+   | provider:network_type     | vlan                                 |
+   | provider:physical_network | provider                             |
+   | provider:segmentation_id  | 101                                  |
+   | router:external           | True                                |
+   | shared                    | True                                 |
+   | status                    | ACTIVE                               |
+   | subnets                   |                                      |
+   | tenant_id                 | e0bddbc9210d409795887175341b7098     |
+   +---------------------------+--------------------------------------+
+   ```
+
+   >  Note: The `shared` option allows any project to use this network.
+
+3. Create a subnet on the provider network:
+
+   ```
+   root@controller:~# openstack subnet create --network provider-vlan-101 --allocation-pool start=172.16.0.100,end=172.16.0.200  --gateway 172.16.0.1   --subnet-range 172.16.0.0/24 provider-vlan-101
+   +-------------------+--------------------------------------+
+   | Field             | Value                                |
+   +-------------------+--------------------------------------+
+   | allocation_pools  | 172.16.0.100-172.16.0.200            |
+   | cidr              | 172.16.0.0/24                        |
+   | created_at        | 2017-08-28T03:32:06Z                 |
+   | description       |                                      |
+   | dns_nameservers   |                                      |
+   | enable_dhcp       | True                                 |
+   | gateway_ip        | 172.16.0.1                           |
+   | host_routes       |                                      |
+   | id                | 61693a58-a984-4f7b-9097-dd5e489a88bd |
+   | ip_version        | 4                                    |
+   | ipv6_address_mode | None                                 |
+   | ipv6_ra_mode      | None                                 |
+   | name              | provider-vlan-101                    |
+   | network_id        | 2a33434f-ba29-4645-9b5d-24f1509066f1 |
+   | project_id        | 78c9c849237649a3a8c4526167427589     |
+   | revision_number   | 2                                    |
+   | segment_id        | None                                 |
+   | service_types     |                                      |
+   | subnetpool_id     | None                                 |
+   | updated_at        | 2017-08-28T03:32:06Z                 |
+   +-------------------+--------------------------------------+
+
+   // or via neutron cli
+   $ neutron subnet-create provider-vlan-101 172.16.0.0/24  \
+     --name provider-101-subnet --gateway 172.16.0.1
+
+   ```
+
+### Verify network operation
+
+1. On the controller node, verify creation of the `qdhcp` namespace:
+
+   ```
+   $ ip netns
+   qdhcp-8b868082-e312-4110-8627-298109d4401c
+   ```
+
+   Note: The `qdhcp` namespace might not exist until launching an instance.
+
+2. Source the regular project credentials. The following steps use the `demo` project.
+
+3. Create the appropriate security group rules to allow ping and SSH access to the instance. 
+
+   > for OSC command referring to above chapters below is command for nova cli
+
+   ```
+   root@controller:~# openstack network list
+   +--------------------------------------+-------------------+--------------------------------------+
+   | ID                                   | Name              | Subnets                              |
+   +--------------------------------------+-------------------+--------------------------------------+
+   | 152a4a85-dc52-4c62-9bbd-742eb4f7b8fa | provider-vlan-101 | 91d305ac-762a-4062-b1da-8a55d7ebd735 |
+   +--------------------------------------+-------------------+--------------------------------------+
+   root@controller:~# openstack server create --flavor m1.nano --image cirros   --nic net-id=152a4a85-dc52-4c62-9bbd-742eb4f7b8fa --security-group default provider-vlan-instance
+   +-------------------------------------+-----------------------------------------------+
+   | Field                               | Value                                         |
+   +-------------------------------------+-----------------------------------------------+
+   | OS-DCF:diskConfig                   | MANUAL                                        |
+   | OS-EXT-AZ:availability_zone         |                                               |
+   | OS-EXT-SRV-ATTR:host                | None                                          |
+   | OS-EXT-SRV-ATTR:hypervisor_hostname | None                                          |
+   | OS-EXT-SRV-ATTR:instance_name       |                                               |
+   | OS-EXT-STS:power_state              | NOSTATE                                       |
+   | OS-EXT-STS:task_state               | scheduling                                    |
+   | OS-EXT-STS:vm_state                 | building                                      |
+   | OS-SRV-USG:launched_at              | None                                          |
+   | OS-SRV-USG:terminated_at            | None                                          |
+   | accessIPv4                          |                                               |
+   | accessIPv6                          |                                               |
+   | addresses                           |                                               |
+   | adminPass                           | e9YKhRWy7XmN                                  |
+   | config_drive                        |                                               |
+   | created                             | 2017-08-28T03:44:10Z                          |
+   | flavor                              | m1.nano (0)                                   |
+   | hostId                              |                                               |
+   | id                                  | 2b78d9ee-3476-4e6b-9c4e-09ad2b7f115e          |
+   | image                               | cirros (c17e391e-93e1-4480-9cf3-bf8623063e61) |
+   | key_name                            | None                                          |
+   | name                                | provider-vlan-instance                        |
+   | progress                            | 0                                             |
+   | project_id                          | 78c9c849237649a3a8c4526167427589              |
+   | properties                          |                                               |
+   | security_groups                     | name='default'                                |
+   | status                              | BUILD                                         |
+   | updated                             | 2017-08-28T03:44:10Z                          |
+   | user_id                             | d8efd16c30904a7992010abe4bdb9a2b              |
+   | volumes_attached                    |                                               |
+   +-------------------------------------+-----------------------------------------------+
+   ```
+
+4. Launch an instance with an interface on the provider network.
+
+   Note
+
+   This example uses a CirrOS image that was manually uploaded into the Image Service
+
+   ```
+   $ nova boot --flavor m1.tiny --image cirros-0.3.3-x86_64-disk test_server
+   +--------------------------------------+-----------------------------------------------------------------+
+   | Property                             | Value                                                           |
+   +--------------------------------------+-----------------------------------------------------------------+
+   | OS-DCF:diskConfig                    | MANUAL                                                          |
+   | OS-EXT-AZ:availability_zone          | nova                                                            |
+   | OS-EXT-SRV-ATTR:host                 | -                                                               |
+   | OS-EXT-SRV-ATTR:hypervisor_hostname  | -                                                               |
+   | OS-EXT-SRV-ATTR:instance_name        | instance-00000001                                               |
+   | OS-EXT-STS:power_state               | 0                                                               |
+   | OS-EXT-STS:task_state                | scheduling                                                      |
+   | OS-EXT-STS:vm_state                  | building                                                        |
+   | OS-SRV-USG:launched_at               | -                                                               |
+   | OS-SRV-USG:terminated_at             | -                                                               |
+   | accessIPv4                           |                                                                 |
+   | accessIPv6                           |                                                                 |
+   | adminPass                            | h7CkMdkRXuuh                                                    |
+   | config_drive                         |                                                                 |
+   | created                              | 2015-07-22T20:40:16Z                                            |
+   | flavor                               | m1.tiny (1)                                                     |
+   | hostId                               |                                                                 |
+   | id                                   | dee2a9f4-e24c-444d-8c94-386f11f74af5                            |
+   | image                                | cirros-0.3.3-x86_64-disk (2b6bb38f-f69f-493c-a1c0-264dfd4188d8) |
+   | key_name                             | -                                                               |
+   | metadata                             | {}                                                              |
+   | name                                 | test_server                                                     |
+   | os-extended-volumes:volumes_attached | []                                                              |
+   | progress                             | 0                                                               |
+   | security_groups                      | default                                                         |
+   | status                               | BUILD                                                           |
+   | tenant_id                            | 5f2db133e98e4bc2999ac2850ce2acd1                                |
+   | updated                              | 2015-07-22T20:40:16Z                                            |
+   | user_id                              | ea417ebfa86741af86f84a5dbcc97cd2                                |
+   +--------------------------------------+-----------------------------------------------------------------+
+
+   ```
+
+5. Determine the IP address of the instance. The following step uses 203.0.113.3.
+
+   ```
+   $ nova list
+   +--------------------------------------+-------------+--------+------------+-------------+--------------------------+
+   | ID                                   | Name        | Status | Task State | Power State | Networks                 |
+   +--------------------------------------+-------------+--------+------------+-------------+--------------------------+
+   | dee2a9f4-e24c-444d-8c94-386f11f74af5 | test_server | ACTIVE | -          | Running     | provider-101=203.0.113.3 |
+   +--------------------------------------+-------------+--------+------------+-------------+--------------------------+
+
+   ```
+
+6. On the controller node or any host with access to the provider network, ping the IP address of the instance:
+
+   ```
+   $ ping -c 4 203.0.113.3
+   PING 203.0.113.3 (203.0.113.3) 56(84) bytes of data.
+   64 bytes from 203.0.113.3: icmp_req=1 ttl=63 time=3.18 ms
+   64 bytes from 203.0.113.3: icmp_req=2 ttl=63 time=0.981 ms
+   64 bytes from 203.0.113.3: icmp_req=3 ttl=63 time=1.06 ms
+   64 bytes from 203.0.113.3: icmp_req=4 ttl=63 time=0.929 ms
+
+   --- 203.0.113.3 ping statistics ---
+   4 packets transmitted, 4 received, 0% packet loss, time 3002ms
+   rtt min/avg/max/mdev = 0.929/1.539/3.183/0.951 ms
+
+   ```
+
+7. Obtain access to the instance.
+
+8. Test connectivity to the Internet:
+
+   ```
+   $ ping -c 4 openstack.org
+   PING openstack.org (174.143.194.225) 56(84) bytes of data.
+   64 bytes from 174.143.194.225: icmp_req=1 ttl=53 time=17.4 ms
+   64 bytes from 174.143.194.225: icmp_req=2 ttl=53 time=17.5 ms
+   64 bytes from 174.143.194.225: icmp_req=3 ttl=53 time=17.7 ms
+   64 bytes from 174.143.194.225: icmp_req=4 ttl=53 time=17.5 ms
+
+   --- openstack.org ping statistics ---
+   4 packets transmitted, 4 received, 0% packet loss, time 3003ms
+   rtt min/avg/max/mdev = 17.431/17.575/17.734/0.143 ms
+
+   ```
+
+## [ISSUE] Troubleshooting vlan dhcp
+
+console to vm, it's blocked on dhcp discover, after dhcp failure, metadata network is not ok as well...
+
+   ```
+root@compute:~# virsh console 1
+Connected to domain instance-00000008
+Escape character is ^]
+
+
+Sending discover...
+Usage: /sbin/cirros-dhcpc <up|down>
+No lease, failing
+WARN: /etc/rc3.d/S40-network failed
+cirros-ds 'net' up at 187.22
+checking http://169.254.169.254/2009-04-04/instance-id
+failed 1/20: up 187.48. request failed
+failed 2/20: up 189.90. request failed
+failed 3/20: up 192.04. request failed
+failed 4/20: up 194.30. request failed
+failed 5/20: up 196.44. request failed
+failed 6/20: up 198.55. request failed
+failed 7/20: up 200.80. request failed
+failed 8/20: up 202.97. request failed
+failed 9/20: up 205.13. request failed
+failed 10/20: up 207.37. request failed
+failed 11/20: up 209.54. request failed
+failed 12/20: up 211.67. request failed
+failed 13/20: up 213.91. request failed
+failed 14/20: up 216.05. request failed
+failed 15/20: up 218.21. request failed
+failed 16/20: up 220.49. request failed
+failed 17/20: up 222.61. request failed
+failed 18/20: up 224.75. request failed
+failed 19/20: up 227.00. request failed
+failed 20/20: up 229.12. request failed
+failed to read iid from metadata. tried 20
+```
+
+from compute nothing received after discover sent out
+
+```
+root@compute:~# tcpdump -i  brq152a4a85-dc -vv port 67 or port 68 -e -n
+tcpdump: listening on brq152a4a85-dc, link-type EN10MB (Ethernet), capture size 262144 bytes
+11:56:52.659297 fa:16:3e:66:84:cc > ff:ff:ff:ff:ff:ff, ethertype IPv4 (0x0800), length 332: (tos 0x0, ttl 64, id 0, offset 0, flags [none], proto UDP (17), length 318)
+    0.0.0.0.68 > 255.255.255.255.67: [udp sum ok] BOOTP/DHCP, Request from fa:16:3e:66:84:cc, length 290, xid 0xd0ed70a, Flags [none] (0x0000)
+          Client-Ethernet-Address fa:16:3e:66:84:cc
+          Vendor-rfc1048 Extensions
+            Magic Cookie 0x63825363
+            DHCP-Message Option 53, length 1: Discover
+            Client-ID Option 61, length 7: ether fa:16:3e:66:84:cc
+            MSZ Option 57, length 2: 576
+            Parameter-Request Option 55, length 9:
+              Subnet-Mask, Default-Gateway, Domain-Name-Server, Hostname
+              Domain-Name, MTU, BR, NTP
+              Classless-Static-Route
+            Vendor-Class Option 60, length 12: "udhcp 1.20.1"
+            Hostname Option 12, length 6: "cirros"
+11:57:52.726797 fa:16:3e:66:84:cc > ff:ff:ff:ff:ff:ff, ethertype IPv4 (0x0800), length 332: (tos 0x0, ttl 64, id 0, offset 0, flags [none], proto UDP (17), length 318)
+    0.0.0.0.68 > 255.255.255.255.67: [udp sum ok] BOOTP/DHCP, Request from fa:16:3e:66:84:cc, length 290, xid 0xd0ed70a, secs 60, Flags [none] (0x0000)
+          Client-Ethernet-Address fa:16:3e:66:84:cc
+          Vendor-rfc1048 Extensions
+            Magic Cookie 0x63825363
+            DHCP-Message Option 53, length 1: Discover
+            Client-ID Option 61, length 7: ether fa:16:3e:66:84:cc
+            MSZ Option 57, length 2: 576
+            Parameter-Request Option 55, length 9:
+              Subnet-Mask, Default-Gateway, Domain-Name-Server, Hostname
+              Domain-Name, MTU, BR, NTP
+              Classless-Static-Route
+            Vendor-Class Option 60, length 12: "udhcp 1.20.1"
+            Hostname Option 12, length 6: "cirros"
+```
+
+While it had been sent out from dhcp agent "DHCP OFFER"
+
+```
+tcpdump: listening on brq152a4a85-dc, link-type EN10MB (Ethernet), capture size 262144 bytes
+11:56:52.259801 fa:16:3e:66:84:cc > ff:ff:ff:ff:ff:ff, ethertype IPv4 (0x0800), length 332: (tos 0x0, ttl 64, id 0, offset 0, flags [none], proto UDP (17), length 318)
+    0.0.0.0.68 > 255.255.255.255.67: [udp sum ok] BOOTP/DHCP, Request from fa:16:3e:66:84:cc, length 290, xid 0xd0ed70a, Flags [none] (0x0000)
+          Client-Ethernet-Address fa:16:3e:66:84:cc
+          Vendor-rfc1048 Extensions
+            Magic Cookie 0x63825363
+            DHCP-Message Option 53, length 1: Discover
+            Client-ID Option 61, length 7: ether fa:16:3e:66:84:cc
+            MSZ Option 57, length 2: 576
+            Parameter-Request Option 55, length 9:
+              Subnet-Mask, Default-Gateway, Domain-Name-Server, Hostname
+              Domain-Name, MTU, BR, NTP
+              Classless-Static-Route
+            Vendor-Class Option 60, length 12: "udhcp 1.20.1"
+            Hostname Option 12, length 6: "cirros"
+11:56:52.261241 fa:16:3e:56:9f:61 > fa:16:3e:66:84:cc, ethertype IPv4 (0x0800), length 370: (tos 0xc0, ttl 64, id 11060, offset 0, flags [none], proto UDP (17), length 356)
+    172.16.0.100.67 > 172.16.0.105.68: [udp sum ok] BOOTP/DHCP, Reply, length 328, xid 0xd0ed70a, Flags [none] (0x0000)
+          Your-IP 172.16.0.105
+          Server-IP 172.16.0.100
+          Client-Ethernet-Address fa:16:3e:66:84:cc
+          Vendor-rfc1048 Extensions
+            Magic Cookie 0x63825363
+            DHCP-Message Option 53, length 1: Offer
+            Server-ID Option 54, length 4: 172.16.0.100
+            Lease-Time Option 51, length 4: 86400
+            RN Option 58, length 4: 43200
+            RB Option 59, length 4: 75600
+            Subnet-Mask Option 1, length 4: 255.255.255.0
+            BR Option 28, length 4: 172.16.0.255
+            Domain-Name-Server Option 6, length 4: 172.16.0.100
+            Domain-Name Option 15, length 14: "openstacklocal"
+            Default-Gateway Option 3, length 4: 172.16.0.1
+            Classless-Static-Route Option 121, length 14: (169.254.169.254/32:172.16.0.100),(default:172.16.0.1)
+            MTU Option 26, length 2: 1500
+```
+
+The network configured in virtualbox was not in promiscuous mode caus
+
+succeeded:
+
+```
+udhcpc (v1.20.1) started
+Sending discover...
+Sending discover...
+Sending select for 172.16.0.105...
+Lease of 172.16.0.105 obtained, lease time 86400
+route: SIOCADDRT: File exists
+WARN: failed: route add -net "0.0.0.0/0" gw "172.16.0.1"
+cirros-ds 'net' up at 74.67
+checking http://169.254.169.254/2009-04-04/instance-id
+successful after 1/20 tries: up 75.02. iid=i-00000009
+```
+
+```

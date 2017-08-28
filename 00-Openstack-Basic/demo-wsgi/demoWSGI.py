@@ -20,6 +20,10 @@ def hello():
     # Just return a string
     return "Hello World! I am a WSGI process :-)..."
 
+@app.route("/hello/<name>")
+def helloName(name):
+    # Just return a string
+    return "Hello World! I am a WSGI process :-)... " + name
 
 @app.route("/doSomething")
 def doSomething():
