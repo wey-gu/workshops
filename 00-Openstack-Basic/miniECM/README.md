@@ -1,6 +1,6 @@
 # a demo ochestrator for Openstack
 ## Screenshot
-![screenshot](https://github.com/littlewey/workshops/tree/master/00-Openstack-Basic/miniECM/screenshot.png)
+![alt text](https://github.com/littlewey/workshops/tree/master/00-Openstack-Basic/miniECM/screenshot.png "screenshot")
 
 ## Package dependency
 ```
