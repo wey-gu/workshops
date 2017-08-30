@@ -194,11 +194,17 @@ down ip link set dev $IFACE down
 ```
 # vi /etc/network/interfaces
 
+...
 auto enp0s3
 iface enp0s3 inet static
 address 10.20.0.10
 netmask 255.255.255.0
+# gateway 10.20.0.1  <--- comment out this line
 
+...
+```
+
+```
 # ifup enp0s3
 ```
 
@@ -5205,7 +5211,7 @@ rabbitmqctl set_permissions -p / admin ".*" ".*" ".*"
    +--------------------------------------+--------------------+------------+-------------------+-------+----------------+---------------------------+
    ```
 
-
+  ```
    root@controller:~# openstack network agent list
    +--------------------------------------+--------------------+------------+-------------------+-------+-------+---------------------------+
    | ID                                   | Agent Type         | Host       | Availability Zone | Alive | State | Binary                    |
@@ -5215,7 +5221,7 @@ rabbitmqctl set_permissions -p / admin ".*" ".*" ".*"
    | 7502e1a3-998d-4aca-91e4-ca17e1b10c82 | DHCP agent         | controller | nova              | True  | UP    | neutron-dhcp-agent        |
    | 7c47ac70-5de2-4442-8fc1-91fe97ae120f | Metadata agent     | controller | None              | True  | UP    | neutron-metadata-agent    |
    +--------------------------------------+--------------------+------------+-------------------+-------+-------+---------------------------+
-   ```
+  ```
 
 ### Create initial networks
 
@@ -5511,7 +5517,7 @@ failed 18/20: up 224.75. request failed
 failed 19/20: up 227.00. request failed
 failed 20/20: up 229.12. request failed
 failed to read iid from metadata. tried 20
-```
+   ```
 
 from compute nothing received after discover sent out
 
@@ -5602,6 +5608,8 @@ WARN: failed: route add -net "0.0.0.0/0" gw "172.16.0.1"
 cirros-ds 'net' up at 74.67
 checking http://169.254.169.254/2009-04-04/instance-id
 successful after 1/20 tries: up 75.02. iid=i-00000009
+```
+
 ```
 
 ```
