@@ -185,7 +185,6 @@ down ip link set dev $IFACE down
 
   ​
 
-  ​
 
 ## Controller node actions
 
@@ -311,7 +310,7 @@ Restart the Memcached service:
 
 auto enp0s3
 iface enp0s3 inet static
-address 10.20.0.10
+address 10.20.0.20
 netmask 255.255.255.0
 
 # ifup enp0s3
