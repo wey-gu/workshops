@@ -312,6 +312,7 @@ auto enp0s3
 iface enp0s3 inet static
 address 10.20.0.20
 netmask 255.255.255.0
+# comment out gateway
 
 # ifup enp0s3
 ```
@@ -325,13 +326,11 @@ server 10.20.0.10 iburst
 change hostname and hosts
 
 ```
-# echo conpute > /etc/hostname
+# echo compute > /etc/hostname
 # echo 10.20.0.10    controller >> /etc/hosts
 # echo 10.20.0.20    compute >> /etc/hosts
 # hostname compute
 ```
-
-
 
 
 

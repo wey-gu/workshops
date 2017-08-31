@@ -47,10 +47,10 @@ outputs:
     value: { get_attr: [ nodeA, name ] }
   nodeA_ip:
     description: IP address of the instance.
-    value: { get_attr: [ nodeB, first_address ] }
+    value: { get_attr: [ nodeA, first_address ] }
   nodeB:
     description: Name of the instance.
-    value: { get_attr: [ nodeA, name ] }
+    value: { get_attr: [ nodeB, name ] }
   nodeB_ip:
     description: IP address of the instance.
     value: { get_attr: [ nodeB, first_address ] }
