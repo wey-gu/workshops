@@ -1039,34 +1039,34 @@ Before you install and configure the Compute service, you must create databases,
 
 -  Create the `nova_api`, `nova`, and `nova_cell0` databases:
 
-   ```
-   MariaDB [(none)]> CREATE DATABASE nova_api;
-   MariaDB [(none)]> CREATE DATABASE nova;
-   MariaDB [(none)]> CREATE DATABASE nova_cell0;
+    ```
+    MariaDB [(none)]> CREATE DATABASE nova_api;
+    MariaDB [(none)]> CREATE DATABASE nova;
+    MariaDB [(none)]> CREATE DATABASE nova_cell0;
 
-   ```
+    ```
 
 -  Grant proper access to the databases:
 
-      ```
-      MariaDB [(none)]> GRANT ALL PRIVILEGES ON nova_api.* TO 'nova'@'localhost' \
-        IDENTIFIED BY 'NOVA_DBPASS';
-      MariaDB [(none)]> GRANT ALL PRIVILEGES ON nova_api.* TO 'nova'@'%' \
-        IDENTIFIED BY 'NOVA_DBPASS';
-
-      MariaDB [(none)]> GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'localhost' \
-        IDENTIFIED BY 'NOVA_DBPASS';
-      MariaDB [(none)]> GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'%' \
-        IDENTIFIED BY 'NOVA_DBPASS';
-
-      MariaDB [(none)]> GRANT ALL PRIVILEGES ON nova_cell0.* TO 'nova'@'localhost' \
-        IDENTIFIED BY 'NOVA_DBPASS';
-      MariaDB [(none)]> GRANT ALL PRIVILEGES ON nova_cell0.* TO 'nova'@'%' \
-        IDENTIFIED BY 'NOVA_DBPASS';
-
-      ```
-
-      Replace `NOVA_DBPASS` with a suitable password.
+       ​```
+       MariaDB [(none)]> GRANT ALL PRIVILEGES ON nova_api.* TO 'nova'@'localhost' \
+         IDENTIFIED BY 'NOVA_DBPASS';
+       MariaDB [(none)]> GRANT ALL PRIVILEGES ON nova_api.* TO 'nova'@'%' \
+         IDENTIFIED BY 'NOVA_DBPASS';
+       
+       MariaDB [(none)]> GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'localhost' \
+         IDENTIFIED BY 'NOVA_DBPASS';
+       MariaDB [(none)]> GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'%' \
+         IDENTIFIED BY 'NOVA_DBPASS';
+       
+       MariaDB [(none)]> GRANT ALL PRIVILEGES ON nova_cell0.* TO 'nova'@'localhost' \
+         IDENTIFIED BY 'NOVA_DBPASS';
+       MariaDB [(none)]> GRANT ALL PRIVILEGES ON nova_cell0.* TO 'nova'@'%' \
+         IDENTIFIED BY 'NOVA_DBPASS';
+       
+       ​```
+       
+       Replace `NOVA_DBPASS` with a suitable password.
 
    - Exit the database access client.
 
@@ -1525,29 +1525,29 @@ This section describes how to install and configure the Compute service on a com
 
 -    In the `[DEFAULT]` section, configure the `my_ip` option:
 
-     ```
-     [DEFAULT]
-     ...
-     my_ip = MANAGEMENT_INTERFACE_IP_ADDRESS
-     ```
+        ```
+        [DEFAULT]
+        ...
+        my_ip = MANAGEMENT_INTERFACE_IP_ADDRESS
+        ```
 
-     Replace `MANAGEMENT_INTERFACE_IP_ADDRESS` with the IP address of the management network interface on your compute node, typically 10.0.0.31 for the first node in the [example architecture](https://docs.openstack.org/newton/install-guide-ubuntu/overview.html#overview-example-architectures).
+        Replace `MANAGEMENT_INTERFACE_IP_ADDRESS` with the IP address of the management network interface on your compute node, typically 10.0.0.31 for the first node in the [example architecture](https://docs.openstack.org/newton/install-guide-ubuntu/overview.html#overview-example-architectures).
 
      >  here our compute is 10.20.0.20
 
 -    In the `[DEFAULT]` section, enable support for the Networking service:
 
-        ```
-        [DEFAULT]
-        ...
-        use_neutron = True
-        firewall_driver = nova.virt.firewall.NoopFirewallDriver
-        ```
+           ```
+           [DEFAULT]
+           ...
+           use_neutron = True
+           firewall_driver = nova.virt.firewall.NoopFirewallDriver
+           ```
+         
+           By default, Compute uses an internal firewall service. Since Networking includes a firewall service, you must disable the Compute firewall service by using the `nova.virt.firewall.NoopFirewallDriver` firewall driver.
 
-        By default, Compute uses an internal firewall service. Since Networking includes a firewall service, you must disable the Compute firewall service by using the `nova.virt.firewall.NoopFirewallDriver` firewall driver.
 
-
--    In the `[vnc]` section, enable and configure remote console access:
+- In the `[vnc]` section, enable and configure remote console access:
 
      ```
      [vnc]
@@ -1565,17 +1565,17 @@ This section describes how to install and configure the Compute service on a com
 
      If the web browser to access remote consoles resides on a host that cannot resolve the `controller` hostname, you must replace `controller` with the management interface IP address of the controller node.
 
--    In the `[glance]` section, configure the location of the Image service API:
+- In the `[glance]` section, configure the location of the Image service API:
 
         ```
         [glance]
         ...
         api_servers = http://controller:9292
-
+      
         ```
 
 
--    In the `[oslo_concurrency]` section, configure the lock path:
+- In the `[oslo_concurrency]` section, configure the lock path:
 
      ```
      [oslo_concurrency]
@@ -1584,9 +1584,9 @@ This section describes how to install and configure the Compute service on a com
      ```
 
 
--    Due to a packaging bug, remove the `log-dir` option from the `[DEFAULT]` section.
+- Due to a packaging bug, remove the `log-dir` option from the `[DEFAULT]` section.
 
--    In the `[placement]` section, configure the Placement API:
+- In the `[placement]` section, configure the Placement API:
 
         ```
         [placement]
@@ -1600,7 +1600,7 @@ This section describes how to install and configure the Compute service on a com
         username = placement
         password = placement
         ```
-
+      
         Replace `placement` with the password you choose for the `placement` user in the Identity service. Comment out any other options in the `[placement]` section.
 
 
@@ -2974,20 +2974,20 @@ Before you install and configure the Block Storage service, you must create a da
 
 -  Create the `cinder` database:
 
-   ```
-   MariaDB [(none)]> CREATE DATABASE cinder;
-   ```
+    ```
+    MariaDB [(none)]> CREATE DATABASE cinder;
+    ```
 
 -  Grant proper access to the `cinder` database:
 
-      ```
-      MariaDB [(none)]> GRANT ALL PRIVILEGES ON cinder.* TO 'cinder'@'localhost' \
-        IDENTIFIED BY 'CINDER_DBPASS';
-      MariaDB [(none)]> GRANT ALL PRIVILEGES ON cinder.* TO 'cinder'@'%' \
-        IDENTIFIED BY 'CINDER_DBPASS';
-      ```
-
-      Replace `CINDER_DBPASS` with a suitable password.
+       ​```
+       MariaDB [(none)]> GRANT ALL PRIVILEGES ON cinder.* TO 'cinder'@'localhost' \
+         IDENTIFIED BY 'CINDER_DBPASS';
+       MariaDB [(none)]> GRANT ALL PRIVILEGES ON cinder.* TO 'cinder'@'%' \
+         IDENTIFIED BY 'CINDER_DBPASS';
+       ​```
+       
+       Replace `CINDER_DBPASS` with a suitable password.
 
    - Exit the database access client.
 
@@ -3524,7 +3524,7 @@ Install the packages:
      Replace `STORAGE_INTERFACE_IP_ADDRESS` with the IP address of the storage network (eth2).
 
 
--    In the `[lvm]` section, configure the LVM back end with the LVM driver, `cinder-volumes` volume group, iSCSI protocol, and appropriate iSCSI service:
+- In the `[lvm]` section, configure the LVM back end with the LVM driver, `cinder-volumes` volume group, iSCSI protocol, and appropriate iSCSI service:
 
      ```
      [lvm]
@@ -3538,21 +3538,21 @@ Install the packages:
 
 -  In the `[DEFAULT]` section, enable the LVM back end:
 
-   ```
-   [DEFAULT]
-   # ...
-   enabled_backends = lvm
-   ```
+    ```
+    [DEFAULT]
+    # ...
+    enabled_backends = lvm
+    ```
 
-   Back-end names are arbitrary. As an example, this guide uses the name of the driver as the name of the back end.
+    Back-end names are arbitrary. As an example, this guide uses the name of the driver as the name of the back end.
 
 -  In the `[DEFAULT]` section, configure the location of the Image service API:
 
-      ```
-      [DEFAULT]
-      # ...
-      glance_api_servers = http://controller:9292
-      ```
+       ​```
+       [DEFAULT]
+       # ...
+       glance_api_servers = http://controller:9292
+       ​```
 
    - In the `[oslo_concurrency]` section, configure the lock path:
 
@@ -3713,49 +3713,49 @@ root@storage:~# lvdisplay
 
 1.   Attach a volume to an instance:
 
-     ```
-     $ openstack server add volume INSTANCE_NAME VOLUME_NAME
-     ```
+       ```
+       $ openstack server add volume INSTANCE_NAME VOLUME_NAME
+       ```
 
-     Replace `INSTANCE_NAME` with the name of the instance and `VOLUME_NAME` with the name of the volume you want to attach to it.
+       Replace `INSTANCE_NAME` with the name of the instance and `VOLUME_NAME` with the name of the volume you want to attach to it.
 
-     **Example**
+       **Example**
 
-     Attach the `volume1` volume to the `provider-instance` instance:
+       Attach the `volume1` volume to the `provider-instance` instance:
 
-     ```
-     $ openstack server add volume provider-instance volume1
-     ```
+       ```
+       $ openstack server add volume provider-instance volume1
+       ```
 
-     ​
+       ​
 
-     This command provides no output.
+       This command provides no output.
 
 2.   List volumes:
 
-     ```
-     root@controller:~# openstack volume list
-     +--------------------------------------+--------------+--------+------+--------------------------------------------+
-     | ID                                   | Display Name | Status | Size | Attached to                                |
-     +--------------------------------------+--------------+--------+------+--------------------------------------------+
-     | 81ffed40-ed71-495d-bfa9-8fb8c72cf222 | volume1      | in-use |    1 | Attached to provider-instance on /dev/vdb  |
-     +--------------------------------------+--------------+--------+------+--------------------------------------------+
+       ```
+       root@controller:~# openstack volume list
+       +--------------------------------------+--------------+--------+------+--------------------------------------------+
+       | ID                                   | Display Name | Status | Size | Attached to                                |
+       +--------------------------------------+--------------+--------+------+--------------------------------------------+
+       | 81ffed40-ed71-495d-bfa9-8fb8c72cf222 | volume1      | in-use |    1 | Attached to provider-instance on /dev/vdb  |
+       +--------------------------------------+--------------+--------+------+--------------------------------------------+
 
-     root@storage:~# lvdisplay
-       --- Logical volume ---
-       LV Path                /dev/ubuntu-vg/root
-       LV Name                root
-       VG Name                ubuntu-vg
-       LV UUID                NA7DgH-V0Sv-cH8E-wvej-aJmP-6EBO-joXO0C
-       LV Write Access        read/write
-       LV Creation host, time ubuntu, 2017-08-23 16:30:36 +0800
-       LV Status              available
-       # open                 1
-       LV Size                45.52 GiB
-       Current LE             11653
-       Segments               1
-       Allocation             inherit
-       Read ahead sectors     auto
+       root@storage:~# lvdisplay
+         --- Logical volume ---
+         LV Path                /dev/ubuntu-vg/root
+         LV Name                root
+         VG Name                ubuntu-vg
+         LV UUID                NA7DgH-V0Sv-cH8E-wvej-aJmP-6EBO-joXO0C
+         LV Write Access        read/write
+         LV Creation host, time ubuntu, 2017-08-23 16:30:36 +0800
+         LV Status              available
+         # open                 1
+         LV Size                45.52 GiB
+         Current LE             11653
+         Segments               1
+         Allocation             inherit
+         Read ahead sectors     auto
      - currently set to     256
      Block device           252:0
 
@@ -3792,7 +3792,7 @@ root@storage:~# lvdisplay
      Read ahead sectors     auto
      - currently set to     256
      Block device           252:2
-     ```
+       ```
    ```
 
 3. Access your instance using SSH or `virsh console` and use the `fdisk` command to verify presence of the volume as the `/dev/vdb` block storage device:
@@ -3913,20 +3913,20 @@ Before you install and configure Orchestration, you must create a database, serv
 
 -  Create the `heat` database:
 
-   ```
-   CREATE DATABASE heat;
-   ```
+    ```
+    CREATE DATABASE heat;
+    ```
 
 -  Grant proper access to the `heat` database:
 
-      ```
-      GRANT ALL PRIVILEGES ON heat.* TO 'heat'@'localhost' \
-        IDENTIFIED BY 'HEAT_DBPASS';
-      GRANT ALL PRIVILEGES ON heat.* TO 'heat'@'%' \
-        IDENTIFIED BY 'HEAT_DBPASS';
-      ```
-
-      Replace `HEAT_DBPASS` with a suitable password.
+       ​```
+       GRANT ALL PRIVILEGES ON heat.* TO 'heat'@'localhost' \
+         IDENTIFIED BY 'HEAT_DBPASS';
+       GRANT ALL PRIVILEGES ON heat.* TO 'heat'@'%' \
+         IDENTIFIED BY 'HEAT_DBPASS';
+       ​```
+       
+       Replace `HEAT_DBPASS` with a suitable password.
 
    - Exit the database access client.
 
@@ -4478,34 +4478,32 @@ The Orchestration service uses templates to describe stacks. To learn about the 
 
 -       Create the `HOT-demo.yml` file with the following content:
 
-        ```
-        heat_template_version: 2015-10-15
-        description: Launch a basic instance with CirrOS image using the
-                     ``m1.nano`` flavor,  and one network.
+```
+heat_template_version: 2015-10-15
+description: Launch a basic instance with CirrOS image using the
+             ``m1.nano`` flavor,  and one network.
 
-        parameters:
-          NetID:
-            type: string
-            description: Network ID to use for the instance.
+parameters:
+  NetID:
+    type: string
+    description: Network ID to use for the instance.
 
-        resources:
-          server:
-            type: OS::Nova::Server
-            properties:
-              image: cirros
-              flavor: m1.nano
-              networks:
-        - network: { get_param: NetID }
-        ```
-
-  outputs:
-    instance_name:
-      description: Name of the instance.
-      value: { get_attr: [ server, name ] }
-    instance_ip:
-      description: IP address of the instance.
-      value: { get_attr: [ server, first_address ] }
-  ```
+resources:
+  server:
+    type: OS::Nova::Server
+    properties:
+      image: cirros
+      flavor: m1.nano
+      networks:
+- network: { get_param: NetID }       
+outputs:
+  instance_name:
+    description: Name of the instance.
+    value: { get_attr: [ server, name ] }
+  instance_ip:
+    description: IP address of the instance.
+    value: { get_attr: [ server, first_address ] }
+```
 
 ### Create a stack
 
@@ -4515,9 +4513,9 @@ Create a stack using the `demo-template.yml` template.
 
   ```
    $ . demo-openrc
-   ```
+  ```
 
-2. Determine available networks.
+1. Determine available networks.
 
    ```
    root@controller:~# openstack network list
@@ -4530,13 +4528,13 @@ Create a stack using the `demo-template.yml` template.
 
    This output may differ from your environment.
 
-3. Set the `NET_ID` environment variable to reflect the ID of a network. For example, using the provider network:
+2. Set the `NET_ID` environment variable to reflect the ID of a network. For example, using the provider network:
 
    ```
    $ export NET_ID=$(openstack network list | awk '/ provider / { print $2 }')
    ```
 
-4. Create a stack of one CirrOS instance on the provider network:
+3. Create a stack of one CirrOS instance on the provider network:
 
    ```
    $ openstack stack create -t HOT-demo.yml --parameter "NetID=$NET_ID" stack
@@ -4547,7 +4545,7 @@ Create a stack using the `demo-template.yml` template.
    +--------------------------------------+------------+--------------------+---------------------+--------------+
    ```
 
-5. After a short time, verify successful creation of the stack:
+4. After a short time, verify successful creation of the stack:
 
    ```
    $ openstack stack list
@@ -4558,7 +4556,7 @@ Create a stack using the `demo-template.yml` template.
    +--------------------------------------+------------+-----------------+---------------------+--------------+
    ```
 
-6. Show the name and IP address of the instance and compare with the output of the OpenStack client:
+5. Show the name and IP address of the instance and compare with the output of the OpenStack client:
 
    ```
    root@controller:~# openstack stack output show --all stack
@@ -4588,7 +4586,7 @@ Create a stack using the `demo-template.yml` template.
    +--------------------------------------+---------------------------+---------+------------------------+------------+
    ```
 
-7. Delete the stack.
+6. Delete the stack.
 
    ```
    $ openstack stack delete --yes stack
@@ -4656,7 +4654,7 @@ outputs:
   nodeB_ip:
     description: IP address of the instance.
     value: { get_attr: [ nodeB, first_address ] }
-```
+   ```
 
 
 
@@ -4782,32 +4780,32 @@ Install the packages:
 ```
      OPENSTACK_HOST = "controller"
 
-     ```
+```
 
 -    In the Dashboard configuration section, allow your hosts to access Dashboard:
 
-     ```
-     ALLOWED_HOSTS = ['*"]
-     ```
+        ```
+        ALLOWED_HOSTS = ['*"]
+        ```
 
      - Do not edit the `ALLOWED_HOSTS` parameter under the Ubuntu configuration section.
      - `ALLOWED_HOSTS` can also be `['*']` to accept all hosts. This may be useful for development work, but is potentially insecure and should not be used in production. See the [Django documentation](https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts) for further information.
 
 -    Configure the `memcached` session storage service:
 
-        ```
-        SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
-
-        CACHES = {
-            'default': {
-                 'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',
-                 'LOCATION': 'controller:11211',
-            }
-        }
-
-        ```
-
-        ​
+           ```
+           SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+         
+           CACHES = {
+               'default': {
+                    'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',
+                    'LOCATION': 'controller:11211',
+               }
+           }
+         
+           ```
+         
+           ​
 
 
      ​
@@ -4816,17 +4814,17 @@ Install the packages:
 
 -  Enable the Identity API version 3:
 
-   ```
-   OPENSTACK_KEYSTONE_URL = "http://%s:5000/v3" % OPENSTACK_HOST
+    ```
+    OPENSTACK_KEYSTONE_URL = "http://%s:5000/v3" % OPENSTACK_HOST
 
-   ```
+    ```
 
 -  Enable support for domains:
 
-      ```
-      OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT = True
-
-      ```
+       ​```
+       OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT = True
+       
+       ​```
 
    - Configure API versions:
 
