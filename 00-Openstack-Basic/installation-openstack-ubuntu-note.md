@@ -1525,13 +1525,13 @@ This section describes how to install and configure the Compute service on a com
 
 -    In the `[DEFAULT]` section, configure the `my_ip` option:
 
-        ```
-        [DEFAULT]
-        ...
-        my_ip = MANAGEMENT_INTERFACE_IP_ADDRESS
-        ```
+     ```
+     [DEFAULT]
+     ...
+     my_ip = MANAGEMENT_INTERFACE_IP_ADDRESS
+     ```
 
-        Replace `MANAGEMENT_INTERFACE_IP_ADDRESS` with the IP address of the management network interface on your compute node, typically 10.0.0.31 for the first node in the [example architecture](https://docs.openstack.org/newton/install-guide-ubuntu/overview.html#overview-example-architectures).
+     Replace `MANAGEMENT_INTERFACE_IP_ADDRESS` with the IP address of the management network interface on your compute node, typically 10.0.0.31 for the first node in the [example architecture](https://docs.openstack.org/newton/install-guide-ubuntu/overview.html#overview-example-architectures).
 
      >  here our compute is 10.20.0.20
 
@@ -1567,12 +1567,12 @@ This section describes how to install and configure the Compute service on a com
 
 - In the `[glance]` section, configure the location of the Image service API:
 
-        ```
+        ​```
         [glance]
         ...
         api_servers = http://controller:9292
-      
-        ```
+          
+        ​```
 
 
 - In the `[oslo_concurrency]` section, configure the lock path:
@@ -1588,7 +1588,7 @@ This section describes how to install and configure the Compute service on a com
 
 - In the `[placement]` section, configure the Placement API:
 
-        ```
+        ​```
         [placement]
         # ...
         os_region_name = RegionOne
@@ -1599,8 +1599,8 @@ This section describes how to install and configure the Compute service on a com
         auth_url = http://controller:35357/v3
         username = placement
         password = placement
-        ```
-      
+        ​```
+          
         Replace `placement` with the password you choose for the `placement` user in the Identity service. Comment out any other options in the `[placement]` section.
 
 
@@ -2399,7 +2399,7 @@ flat_networks = provider
 
 /etc/neutron/plugins/ml2/linuxbridge_agent.ini
 [linux_bridge]
-physical_interface_mappings = provider:enp0s10
+physical_interface_mappings = provider:enp0s8
 ```
 
 
@@ -2453,19 +2453,18 @@ root@controller:~# openstack network list
 +--------------------------------------+----------+---------+
 
 root@controller:~# openstack subnet create --network provider \
->   --allocation-pool start=146.11.41.230,end=146.11.41.233 \
->   --dns-nameserver 147.128.5.12 --gateway 146.11.40.1 \
->   --subnet-range 146.11.40.1/23 provider
+>   --allocation-pool start=172.16.0.100,end=172.16.0.200 \
+>   --gateway 172.16.0.1 \
+>   --subnet-range 172.16.0.1/24 provider
 +-------------------+--------------------------------------+
 | Field             | Value                                |
 +-------------------+--------------------------------------+
-| allocation_pools  | 146.11.41.230-146.11.41.233          |
-| cidr              | 146.11.40.0/23                       |
+| allocation_pools  | 172.16.0.100-172.16.0.200            |
+| cidr              | 172.16.0.1/24                        |
 | created_at        | 2017-08-23T17:17:54Z                 |
 | description       |                                      |
-| dns_nameservers   | 147.128.5.12                         |
 | enable_dhcp       | True                                 |
-| gateway_ip        | 146.11.40.1                          |
+| gateway_ip        | 172.16.0.1                           |
 | host_routes       |                                      |
 | id                | 9b118521-59b5-40ee-a439-9d59c3b392ea |
 | ip_version        | 4                                    |
@@ -2480,7 +2479,6 @@ root@controller:~# openstack subnet create --network provider \
 | subnetpool_id     | None                                 |
 | updated_at        | 2017-08-23T17:17:54Z                 |
 +-------------------+--------------------------------------+
-
 ```
 
 
@@ -2685,7 +2683,6 @@ To launch an instance, you must at least specify the flavor, image name, network
    | user_id                     | cb98fad69e84459bb48f42130d5c0ce5              |
    | volumes_attached            |                                               |
    +-----------------------------+-----------------------------------------------+
-
    ```
 
 2. Check the status of your instance:
@@ -2731,18 +2728,17 @@ To launch an instance, you must at least specify the flavor, image name, network
 2. Verify access to the provider physical network gateway:
 
    ```
-   $ ping -c 4 203.0.113.1
+   $ ping -c 4 172.16.0.1
 
-   PING 203.0.113.1 (203.0.113.1) 56(84) bytes of data.
-   64 bytes from 203.0.113.1: icmp_req=1 ttl=64 time=0.357 ms
-   64 bytes from 203.0.113.1: icmp_req=2 ttl=64 time=0.473 ms
-   64 bytes from 203.0.113.1: icmp_req=3 ttl=64 time=0.504 ms
-   64 bytes from 203.0.113.1: icmp_req=4 ttl=64 time=0.470 ms
+   PING 203.0.113.1 (172.16.0.1) 56(84) bytes of data.
+   64 bytes from 172.16.0.1: icmp_req=1 ttl=64 time=0.357 ms
+   64 bytes from 172.16.0.1: icmp_req=2 ttl=64 time=0.473 ms
+   64 bytes from 172.16.0.1: icmp_req=3 ttl=64 time=0.504 ms
+   64 bytes from 172.16.0.1: icmp_req=4 ttl=64 time=0.470 ms
 
-   --- 203.0.113.1 ping statistics ---
+   --- 172.16.0.1 ping statistics ---
    4 packets transmitted, 4 received, 0% packet loss, time 2998ms
    rtt min/avg/max/mdev = 0.357/0.451/0.504/0.055 ms
-
    ```
 
 3. Verify access to the internet:
@@ -2759,7 +2755,6 @@ To launch an instance, you must at least specify the flavor, image name, network
    --- openstack.org ping statistics ---
    4 packets transmitted, 4 received, 0% packet loss, time 3003ms
    rtt min/avg/max/mdev = 17.431/17.575/17.734/0.143 ms
-
    ```
 
 ### Access the instance remotely
@@ -2767,7 +2762,7 @@ To launch an instance, you must at least specify the flavor, image name, network
 1. Verify connectivity to the instance from the controller node or any host on the provider physical network:
 
    ```
-   $ ping -c 4 203.0.113.103
+   $ ping -c 4 172.16.0.103
 
    PING 203.0.113.103 (203.0.113.103) 56(84) bytes of data.
    64 bytes from 203.0.113.103: icmp_req=1 ttl=63 time=3.18 ms
@@ -2778,7 +2773,6 @@ To launch an instance, you must at least specify the flavor, image name, network
    --- 203.0.113.103 ping statistics ---
    4 packets transmitted, 4 received, 0% packet loss, time 3002ms
    rtt min/avg/max/mdev = 0.929/1.539/3.183/0.951 ms
-
    ```
 
 2. Access your instance using SSH from the controller node or any host on the provider physical network:
@@ -3713,52 +3707,53 @@ root@storage:~# lvdisplay
 
 1.   Attach a volume to an instance:
 
-       ```
-       $ openstack server add volume INSTANCE_NAME VOLUME_NAME
-       ```
+      ```
+      $ openstack server add volume INSTANCE_NAME VOLUME_NAME
+      ```
 
-       Replace `INSTANCE_NAME` with the name of the instance and `VOLUME_NAME` with the name of the volume you want to attach to it.
+      Replace `INSTANCE_NAME` with the name of the instance and `VOLUME_NAME` with the name of the volume you want to attach to it.
 
-       **Example**
+      **Example**
 
-       Attach the `volume1` volume to the `provider-instance` instance:
+      Attach the `volume1` volume to the `provider-instance` instance:
 
-       ```
-       $ openstack server add volume provider-instance volume1
-       ```
+      ```
+      $ openstack server add volume provider-instance volume1
+      ```
 
-       ​
+      ​
 
-       This command provides no output.
+      This command provides no output.
 
 2.   List volumes:
 
-       ```
-       root@controller:~# openstack volume list
-       +--------------------------------------+--------------+--------+------+--------------------------------------------+
-       | ID                                   | Display Name | Status | Size | Attached to                                |
-       +--------------------------------------+--------------+--------+------+--------------------------------------------+
-       | 81ffed40-ed71-495d-bfa9-8fb8c72cf222 | volume1      | in-use |    1 | Attached to provider-instance on /dev/vdb  |
-       +--------------------------------------+--------------+--------+------+--------------------------------------------+
+      ```
+      root@controller:~# openstack volume list
+      +--------------------------------------+--------------+--------+------+--------------------------------------------+
+      | ID                                   | Display Name | Status | Size | Attached to                                |
+      +--------------------------------------+--------------+--------+------+--------------------------------------------+
+      | 81ffed40-ed71-495d-bfa9-8fb8c72cf222 | volume1      | in-use |    1 | Attached to provider-instance on /dev/vdb  |
+      +--------------------------------------+--------------+--------+------+--------------------------------------------+
 
-       root@storage:~# lvdisplay
-         --- Logical volume ---
-         LV Path                /dev/ubuntu-vg/root
-         LV Name                root
-         VG Name                ubuntu-vg
-         LV UUID                NA7DgH-V0Sv-cH8E-wvej-aJmP-6EBO-joXO0C
-         LV Write Access        read/write
-         LV Creation host, time ubuntu, 2017-08-23 16:30:36 +0800
-         LV Status              available
-         # open                 1
-         LV Size                45.52 GiB
-         Current LE             11653
-         Segments               1
-         Allocation             inherit
-         Read ahead sectors     auto
+      root@storage:~# lvdisplay
+        --- Logical volume ---
+        LV Path                /dev/ubuntu-vg/root
+        LV Name                root
+        VG Name                ubuntu-vg
+        LV UUID                NA7DgH-V0Sv-cH8E-wvej-aJmP-6EBO-joXO0C
+        LV Write Access        read/write
+        LV Creation host, time ubuntu, 2017-08-23 16:30:36 +0800
+        LV Status              available
+        # open                 1
+        LV Size                45.52 GiB
+        Current LE             11653
+        Segments               1
+        Allocation             inherit
+        Read ahead sectors     auto
+      ```
      - currently set to     256
      Block device           252:0
-
+    
      --- Logical volume ---
      LV Path                /dev/ubuntu-vg/swap_1
      LV Name                swap_1
@@ -3775,7 +3770,7 @@ root@storage:~# lvdisplay
      Read ahead sectors     auto
      - currently set to     256
      Block device           252:1
-
+    
      --- Logical volume ---
      LV Path                /dev/cinder-volumes/volume-81ffed40-ed71-495d-bfa9-8fb8c72cf222
      LV Name                volume-81ffed40-ed71-495d-bfa9-8fb8c72cf222
@@ -4515,7 +4510,7 @@ Create a stack using the `demo-template.yml` template.
    $ . demo-openrc
   ```
 
-1. Determine available networks.
+2. Determine available networks.
 
    ```
    root@controller:~# openstack network list
@@ -4528,13 +4523,13 @@ Create a stack using the `demo-template.yml` template.
 
    This output may differ from your environment.
 
-2. Set the `NET_ID` environment variable to reflect the ID of a network. For example, using the provider network:
+3. Set the `NET_ID` environment variable to reflect the ID of a network. For example, using the provider network:
 
    ```
    $ export NET_ID=$(openstack network list | awk '/ provider / { print $2 }')
    ```
 
-3. Create a stack of one CirrOS instance on the provider network:
+4. Create a stack of one CirrOS instance on the provider network:
 
    ```
    $ openstack stack create -t HOT-demo.yml --parameter "NetID=$NET_ID" stack
@@ -4545,7 +4540,7 @@ Create a stack using the `demo-template.yml` template.
    +--------------------------------------+------------+--------------------+---------------------+--------------+
    ```
 
-4. After a short time, verify successful creation of the stack:
+5. After a short time, verify successful creation of the stack:
 
    ```
    $ openstack stack list
@@ -4556,7 +4551,7 @@ Create a stack using the `demo-template.yml` template.
    +--------------------------------------+------------+-----------------+---------------------+--------------+
    ```
 
-5. Show the name and IP address of the instance and compare with the output of the OpenStack client:
+6. Show the name and IP address of the instance and compare with the output of the OpenStack client:
 
    ```
    root@controller:~# openstack stack output show --all stack
@@ -4586,7 +4581,7 @@ Create a stack using the `demo-template.yml` template.
    +--------------------------------------+---------------------------+---------+------------------------+------------+
    ```
 
-6. Delete the stack.
+7. Delete the stack.
 
    ```
    $ openstack stack delete --yes stack
@@ -4784,9 +4779,9 @@ Install the packages:
 
 -    In the Dashboard configuration section, allow your hosts to access Dashboard:
 
-        ```
-        ALLOWED_HOSTS = ['*"]
-        ```
+     ```
+     ALLOWED_HOSTS = ['*"]
+     ```
 
      - Do not edit the `ALLOWED_HOSTS` parameter under the Ubuntu configuration section.
      - `ALLOWED_HOSTS` can also be `['*']` to accept all hosts. This may be useful for development work, but is potentially insecure and should not be used in production. See the [Django documentation](https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts) for further information.
