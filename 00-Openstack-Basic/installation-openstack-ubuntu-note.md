@@ -3735,7 +3735,7 @@ root@storage:~# lvdisplay
       +--------------------------------------+--------------+--------+------+--------------------------------------------+
       | 81ffed40-ed71-495d-bfa9-8fb8c72cf222 | volume1      | in-use |    1 | Attached to provider-instance on /dev/vdb  |
       +--------------------------------------+--------------+--------+------+--------------------------------------------+
-
+    
       root@storage:~# lvdisplay
         --- Logical volume ---
         LV Path                /dev/ubuntu-vg/root
@@ -3905,35 +3905,37 @@ Before you install and configure Orchestration, you must create a database, serv
 
    ```
      $ mysql
-     ```
+   ```
 
--  Create the `heat` database:
+   - Create the `heat` database:
 
-    ```
-    CREATE DATABASE heat;
-    ```
+   ```
+   CREATE DATABASE heat;
+   ```
 
--  Grant proper access to the `heat` database:
+   - Grant proper access to the `heat` database:
 
-       ​```
-       GRANT ALL PRIVILEGES ON heat.* TO 'heat'@'localhost' \
-         IDENTIFIED BY 'HEAT_DBPASS';
-       GRANT ALL PRIVILEGES ON heat.* TO 'heat'@'%' \
-         IDENTIFIED BY 'HEAT_DBPASS';
-       ​```
-       
-       Replace `HEAT_DBPASS` with a suitable password.
+   ```
+    ​```
+    GRANT ALL PRIVILEGES ON heat.* TO 'heat'@'localhost' \
+      IDENTIFIED BY 'HEAT_DBPASS';
+    GRANT ALL PRIVILEGES ON heat.* TO 'heat'@'%' \
+      IDENTIFIED BY 'HEAT_DBPASS';
+    ​```
+    
+    Replace `HEAT_DBPASS` with a suitable password.
+   ```
 
    - Exit the database access client.
 
-1. Source the `admin` credentials to gain access to admin-only CLI commands:
+2. Source the `admin` credentials to gain access to admin-only CLI commands:
 
    ```
    $ . admin-openrc
 
    ```
 
-2. To create the service credentials, complete these steps:
+3. To create the service credentials, complete these steps:
 
    - Create the `heat` user:
 
@@ -3987,7 +3989,7 @@ Before you install and configure Orchestration, you must create a database, serv
      +-------------+----------------------------------+
      ```
 
-3. Create the Orchestration service API endpoints:
+4. Create the Orchestration service API endpoints:
 
    ```
    $ openstack endpoint create --region RegionOne \
@@ -4089,7 +4091,7 @@ Before you install and configure Orchestration, you must create a database, serv
    +--------------+----------------------------------+
    ```
 
-4. Orchestration requires additional information in the Identity service to manage stacks. To add this information, complete these steps:
+5. Orchestration requires additional information in the Identity service to manage stacks. To add this information, complete these steps:
 
    - Create the `heat` domain that contains projects and users for stacks:
 
