@@ -3727,6 +3727,7 @@ root@storage:~# lvdisplay
 
 2.   List volumes:
 
+
       ```
       root@controller:~# openstack volume list
       +--------------------------------------+--------------+--------+------+--------------------------------------------+
@@ -3750,45 +3751,45 @@ root@storage:~# lvdisplay
         Segments               1
         Allocation             inherit
         Read ahead sectors     auto
-      ```
-     - currently set to     256
-     Block device           252:0
+      
+       - currently set to     256
+       Block device           252:0
+      
+       --- Logical volume ---
+       LV Path                /dev/ubuntu-vg/swap_1
+       LV Name                swap_1
+       VG Name                ubuntu-vg
+       LV UUID                Vtixi8-qKcP-f1LH-bHqM-E73h-NN7z-eSD2zk
+       LV Write Access        read/write
+       LV Creation host, time ubuntu, 2017-08-23 16:30:36 +0800
+       LV Status              available
+       # open                 2
+       LV Size                4.00 GiB
+       Current LE             1024
+       Segments               1
+       Allocation             inherit
+       Read ahead sectors     auto
+       - currently set to     256
+       Block device           252:1
+      
+       --- Logical volume ---
+       LV Path                /dev/cinder-volumes/volume-81ffed40-ed71-495d-bfa9-8fb8c72cf222
+       LV Name                volume-81ffed40-ed71-495d-bfa9-8fb8c72cf222
+       VG Name                cinder-volumes
+       LV UUID                6jbPGA-i3Eo-O4ng-8Mf3-IoeF-9WF7-g1DGEA
+       LV Write Access        read/write
+       LV Creation host, time storage, 2017-08-24 22:38:28 +0800
+       LV Status              available
+       # open                 1
+       LV Size                1.00 GiB
+       Current LE             256
+       Segments               1
+       Allocation             inherit
+       Read ahead sectors     auto
+       - currently set to     256
+       Block device           252:2
     
-     --- Logical volume ---
-     LV Path                /dev/ubuntu-vg/swap_1
-     LV Name                swap_1
-     VG Name                ubuntu-vg
-     LV UUID                Vtixi8-qKcP-f1LH-bHqM-E73h-NN7z-eSD2zk
-     LV Write Access        read/write
-     LV Creation host, time ubuntu, 2017-08-23 16:30:36 +0800
-     LV Status              available
-     # open                 2
-     LV Size                4.00 GiB
-     Current LE             1024
-     Segments               1
-     Allocation             inherit
-     Read ahead sectors     auto
-     - currently set to     256
-     Block device           252:1
-    
-     --- Logical volume ---
-     LV Path                /dev/cinder-volumes/volume-81ffed40-ed71-495d-bfa9-8fb8c72cf222
-     LV Name                volume-81ffed40-ed71-495d-bfa9-8fb8c72cf222
-     VG Name                cinder-volumes
-     LV UUID                6jbPGA-i3Eo-O4ng-8Mf3-IoeF-9WF7-g1DGEA
-     LV Write Access        read/write
-     LV Creation host, time storage, 2017-08-24 22:38:28 +0800
-     LV Status              available
-     # open                 1
-     LV Size                1.00 GiB
-     Current LE             256
-     Segments               1
-     Allocation             inherit
-     Read ahead sectors     auto
-     - currently set to     256
-     Block device           252:2
-       ```
-   ```
+     ```
 
 3. Access your instance using SSH or `virsh console` and use the `fdisk` command to verify presence of the volume as the `/dev/vdb` block storage device:
 
