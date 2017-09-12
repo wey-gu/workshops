@@ -4474,7 +4474,15 @@ In environments that include the Orchestration service, you can create a stack t
 
 The Orchestration service uses templates to describe stacks. To learn about the template language, see [the Template Guide](http://docs.openstack.org/developer/heat/template_guide/index.html) in the [Heat developer documentation](http://docs.openstack.org/developer/heat/index.html).
 
--       Create the `HOT-demo.yml` file with the following content:
+-    Create the `HOT-demo.yml` file with the following content:
+
+     > You could fetch it from here to avoid format error: 
+     >
+     > ```
+     > # wget https://github.com/littlewey/workshops/raw/master/00-Openstack-Basic/HOT-demo.yml
+     > ```
+
+     ​
 
 ```
 heat_template_version: 2015-10-15
@@ -4595,6 +4603,14 @@ Create a stack using the `demo-template.yml` template.
 >  ref: https://docs.openstack.org/heat/latest/template_guide/index.html
 
 ### HOT 
+
+> fetch it here:
+>
+> ```
+> # wget https://github.com/littlewey/workshops/raw/master/00-Openstack-Basic/HOT-vAPG.yml
+> ```
+
+
 
    ```
 heat_template_version: 2015-10-15
