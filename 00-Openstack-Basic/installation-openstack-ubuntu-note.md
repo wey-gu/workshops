@@ -2001,7 +2001,7 @@ The ML2 plug-in uses the Linux bridge mechanism to build layer-2 (bridging and s
 
 The Linux bridge agent builds layer-2 (bridging and switching) virtual networking infrastructure for instances and handles security groups.
 
-- Edit the `/etc/neutron/plugins/ml2/linuxbridge_agent.ini` file and complete the following actions:
+- Edit the `/etc/neutron/plugins/ml2/linuxbridge_` file and complete the following actions:
 
   - In the `[linux_bridge]` section, map the provider virtual network to the provider physical network interface:
 
@@ -5144,7 +5144,7 @@ rabbitmqctl set_permissions -p / admin ".*" ".*" ".*"
    $ sysctl -p
    ```
 
-3. Configure the ML2 plug-in and Linux bridge agent. Edit the `/etc/neutron/plugins/ml2/ml2_conf.ini` file:
+3. Configure the ML2 plug-in and Linux bridge agent. Edit the `/etc/neutron/plugins/ml2/.ini` file:
 
    ```
    [ml2]
@@ -5159,7 +5159,7 @@ rabbitmqctl set_permissions -p / admin ".*" ".*" ".*"
    network_vlan_ranges = provider:100:200
    ```
 
-4. Edit the`/etc/neutron/plugins/ml2/ml2_conf.ini` file:
+4. Edit the`/etc/neutron/plugins/ml2/linuxbridge_agent.ini` file:
 
    ```
    [linux_bridge]
@@ -5195,7 +5195,7 @@ rabbitmqctl set_permissions -p / admin ".*" ".*" ".*"
    $ sysctl -p
    ```
 
-3. Configure the Linux bridge agent. Edit the `/etc/neutron/plugins/ml2/ml2_conf.ini` file:
+3. Configure the Linux bridge agent. Edit the `/etc/neutron/plugins/ml2/linuxbridge_agent.ini` file:
 
    ```
    [linux_bridge]

@@ -1,3 +1,4 @@
+heat_template_version: 2015-10-15
 description: Launch a basic instance with CirrOS image using the
              ``m1.tiny`` flavor,  and one network.
 
