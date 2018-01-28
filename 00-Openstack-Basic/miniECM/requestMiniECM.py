@@ -18,7 +18,7 @@ def heatInstantiation(stackName,netID,templateURL):
                      'X-Project-Id': tenant_id
                      }
     payload = { "stack_name"    : stackName,
-                "parameters"    : {"NetID":"152a4a85-dc52-4c62-9bbd-742eb4f7b8fa"},
+                "parameters"    : {"NetID" :netID},
                 "template_url"  : templateURL
                 }
 
