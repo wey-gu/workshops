@@ -969,7 +969,7 @@ For more information about how to download and build images, see [OpenStack Virt
 
    ```
    $ openstack image create "cirros" \
-     --file cirros-0.3.4-x86_64-disk.img \
+     --file cirros-0.3.5-x86_64-disk.img \
      --disk-format qcow2 --container-format bare \
      --public
 
@@ -1346,7 +1346,7 @@ Default configuration files vary by distribution. You might need to add these se
      ```
      [DEFAULT]
      # ...
-     my_ip = 10.20.0.20
+     my_ip = 10.20.0.10
      ```
 
 - In the `[DEFAULT]` section, enable support for the Networking service:
@@ -4501,7 +4501,7 @@ resources:
       image: cirros
       flavor: m1.nano
       networks:
-- network: { get_param: NetID }       
+      - network: { get_param: NetID }       
 outputs:
   instance_name:
     description: Name of the instance.
@@ -4612,7 +4612,7 @@ Create a stack using the `demo-template.yml` template.
 
 
 
-   ```
+   ```yaml
 heat_template_version: 2015-10-15
 description: Fake vAPG with CirrOS image using the
              ``m1.nano`` flavor,  and one network.
@@ -4799,7 +4799,7 @@ Install the packages:
 -    In the Dashboard configuration section, allow your hosts to access Dashboard:
 
      ```
-     ALLOWED_HOSTS = ['*"]
+     ALLOWED_HOSTS = ['*']
      ```
 
      - Do not edit the `ALLOWED_HOSTS` parameter under the Ubuntu configuration section.
@@ -4823,7 +4823,7 @@ Install the packages:
 
 
      ​
-
+    
      Comment out any other session storage configuration.
 
 -  Enable the Identity API version 3:
@@ -4886,7 +4886,7 @@ Install the packages:
    - Optionally, configure the time zone:
 
      ```
-     TIME_ZONE = "CN"
+     TIME_ZONE = "<TIME_ZONE>"
      ```
 
      Replace `TIME_ZONE` with an appropriate time zone identifier. For more information, see the [list of time zones](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones).
@@ -5031,23 +5031,6 @@ in the server error log.</p>
 <hr>
 <address>Apache/2.4.18 (Ubuntu) Server at 10.20.0.10 Port 80</address>
 </body></html>
-```
-
-try change as `777` while it cannot pass horizon permission policy with error as below:
-
-```
-# chmod 777 /var/lib/openstack-dashboard/secret_key
-# service apache2 reload
-# curl http://10.20.0.10/horizon
-
-# less /var/log/apache2/error.log
-...
-[Fri Aug 25 16:20:38.336541 2017] [wsgi:error] [pid 9110:tid 140055698921216] [remote 10.20.0.10:18504]     SECRET_KEY = secret_key.generate_or_read_from_file('/var/lib/openstack-dashboard/secret_key') [Fri Aug 25 16:20:38.336553 2017] [wsgi:error] [pid 9110:tid 140055698921216] [remote 10.20.0.10:18504]   File "/usr/share/openstack-dashboard/horizon/utils/secret_key.py", line 70, in generate_or_read_from_file
-[Fri Aug 25 16:20:38.336595 2017] [wsgi:error] [pid 9110:tid 140055698921216] [remote 10.20.0.10:18504]     key = read_from_file(key_file)
-[Fri Aug 25 16:20:38.336603 2017] [wsgi:error] [pid 9110:tid 140055698921216] [remote 10.20.0.10:18504]   File "/usr/share/openstack-dashboard/horizon/utils/secret_key.py", line 51, in read_from_file
-[Fri Aug 25 16:20:38.336612 2017] [wsgi:error] [pid 9110:tid 140055698921216] [remote 10.20.0.10:18504]     os.path.abspath(key_file))
-[Fri Aug 25 16:20:38.336628 2017] [wsgi:error] [pid 9110:tid 140055698921216] [remote 10.20.0.10:18504] FilePermissionError: Insecure permissions on key file /var/lib/openstack-dashboard/secret_key, should be 0600.
-...
 ```
 
 We should identify the process owner and change to it accordingly.
