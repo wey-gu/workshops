@@ -1,0 +1,6 @@
+[submodule "01-Python-Bootcamp"]
+	path = 01-Python-Bootcamp
+	url = https://github.com/wey-gu/pyBootcamp.git
+[submodule "02-OpenStack-Fuel-Plugin/demo/fuel-plugin-nova-docker"]
+	path = 02-OpenStack-Fuel-Plugin/demo/fuel-plugin-nova-docker
+	url = https://github.com/wey-gu/fuel-plugin-nova-docker.git
