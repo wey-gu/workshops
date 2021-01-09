@@ -1,4 +1,32 @@
+```
+├── 00-Openstack-Basic
+│   ├── HOT-demo.yml
+│   ├── HOT-vAPG.yml
+│   ├── README.md
+│   ├── demo-wsgi
+│   ├── docs
+│   ├── images
+│   ├── installation-openstack-ubuntu-note.md
+│   ├── miniECM
+│   └── release
+├── 01-Python-Bootcamp
+│   ├── README.md
+│   ├── README.pdf
+│   ├── blockchain
+│   ├── cloudManager
+│   ├── flask
+│   ├── hugoLearningSite
+│   ├── novaConfParser
+│   └── preparation.md
+├── 02-OpenStack-Fuel-Plugin
+│   ├── README.md
+│   ├── demo
+│   └── keynote_OpenStack_fuel_plugin_dev.md
+└── README.md
+```
+
 ### Openstack Basic
+
 Training Sessions for newbies on OpenStack for my team.
 
 The target audience were Telco. Engineers who would like to get into NFV/ Cloud/ OpenStack fields, and it worked :-). 
